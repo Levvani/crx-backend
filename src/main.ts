@@ -1,18 +1,18 @@
 // src/main.ts
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { RolesGuard } from './auth/guards/roles.guard';
-import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import { NestFactory } from "@nestjs/core";
+import { ValidationPipe } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { AppModule } from "./app.module";
+import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
+import { RolesGuard } from "./auth/guards/roles.guard";
+import { CorsOptions } from "@nestjs/common/interfaces/external/cors-options.interface";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Configure CORS
   const corsOptions: CorsOptions = {
-    origin: 'http://localhost:4200',
+    origin: "http://localhost:4200",
     credentials: true,
   };
   app.enableCors(corsOptions);
@@ -33,6 +33,10 @@ async function bootstrap() {
   app.useGlobalGuards(new JwtAuthGuard(reflector));
   app.useGlobalGuards(new RolesGuard(reflector));
 
-  await app.listen(3000);
+  const port = process.env.PORT || 3000;
+  await app.listen(port, "0.0.0.0");
 }
-bootstrap();
+bootstrap().catch((error) => {
+  console.error("Failed to bootstrap application:", error);
+  process.exit(1);
+});
