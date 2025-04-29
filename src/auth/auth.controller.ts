@@ -1,0 +1,95 @@
+// src/auth/auth.controller.ts
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Get,
+  Request,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { AuthService } from './auth.service';
+import { UsersService } from '../users/users.service';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { Public } from './decorators/public.decorator';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { Request as ExpressRequest } from 'express';
+import { UserRole } from '../users/schemas/user.schema';
+import { User } from '../users/schemas/user.schema';
+
+// Define the JWT payload type returned by the JWT strategy
+interface JwtUser {
+  userId: string;
+  username: string;
+  role: UserRole;
+}
+
+// Extend Express.Request to include our user type
+interface RequestWithUser extends ExpressRequest {
+  user: JwtUser;
+}
+
+@Controller('auth')
+export class AuthController {
+  constructor(
+    private authService: AuthService,
+    private usersService: UsersService,
+  ) {}
+
+  @Public()
+  @Post('register')
+  async register(@Body() createUserDto: CreateUserDto) {
+    try {
+      console.log('Registration request received:', {
+        ...createUserDto,
+        password: '[REDACTED]',
+      });
+
+      const user = await this.usersService.create(createUserDto);
+
+      // Return everything except the password
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...result } = user.toObject() as User;
+      return result;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  }
+
+  @Public()
+  @UseGuards(AuthGuard('local'))
+  @Post('login')
+  login(@Request() req: RequestWithUser) {
+    // The req.user already has the correct format with userId
+    return this.authService.login(req.user);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('profile')
+  getProfile(@Request() req: RequestWithUser) {
+    return req.user;
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  logout() {
+    return { message: 'Logged out successfully' };
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Request() req: RequestWithUser,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    await this.authService.changePassword(
+      req.user.userId,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
+    return { message: 'Password changed successfully' };
+  }
+}
