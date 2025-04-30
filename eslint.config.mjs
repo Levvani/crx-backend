@@ -28,7 +28,7 @@ export default tseslint.config(
       sourceType: 'module',
       parserOptions: {
         project: './tsconfig.json',
-        tsconfigRootDir: '/Users/levanzhvania/Desktop/crx-backend/backend',
+        tsconfigRootDir: '/Users/levanzhvania/Desktop/backend',
       },
     },
   },

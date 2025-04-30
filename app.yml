@@ -1,0 +1,4 @@
+runtime: nodejs20  # Update to a supported version
+
+env_variables:
+  MONGODB_URI: "mongodb+srv://levanzhvania96:somePass1!@cluster0.ut1nsxr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
