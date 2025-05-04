@@ -10,4 +10,4 @@ handlers:
 - url: /.*
   script: auto
 
-entrypoint: npm run start:prod
+entrypoint: npm run build && npm run start:prod
