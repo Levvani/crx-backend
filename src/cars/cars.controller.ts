@@ -8,6 +8,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   Delete,
+  ValidationPipe,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { CarsService } from "./cars.service";
@@ -39,7 +40,8 @@ export class CarsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async findAll(
-    @Query() paginationDto: PaginationDto,
+    @Query(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false }))
+    paginationDto: PaginationDto,
     @Query("vinCode") vinCode?: string,
     @Query("containerNumber") containerNumber?: string,
     @Query("username") username?: string,

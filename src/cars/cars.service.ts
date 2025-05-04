@@ -48,14 +48,35 @@ export class CarsService {
     page: number;
     limit: number;
   }> {
-    const query: CarFilters = {};
+    // Use a more specific type that matches MongoDB query structure
+    const query: Record<string, any> = {};
     if (filters) {
-      if (filters.vinCode) query.vinCode = filters.vinCode;
+      if (filters.vinCode)
+        query.vinCode = { $regex: new RegExp(filters.vinCode, "i") };
       if (filters.containerNumber)
-        query.containerNumber = filters.containerNumber;
-      if (filters.username) query.username = filters.username;
-      if (filters.status) query.status = filters.status;
-      if (filters.dateOfPurchase) query.dateOfPurchase = filters.dateOfPurchase;
+        query.containerNumber = {
+          $regex: new RegExp(filters.containerNumber, "i"),
+        };
+      if (filters.username)
+        query.username = { $regex: new RegExp(filters.username, "i") };
+      if (filters.status)
+        query.status = { $regex: new RegExp(filters.status, "i") };
+      if (filters.dateOfPurchase) {
+        try {
+          // Assuming dateOfPurchase is sent as a string in ISO format (YYYY-MM-DD)
+          const date = new Date(filters.dateOfPurchase);
+          // Create a range for the entire day
+          const startOfDay = new Date(date.setHours(0, 0, 0, 0));
+          const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+
+          query.dateOfPurchase = {
+            $gte: startOfDay,
+            $lte: endOfDay,
+          };
+        } catch (error) {
+          console.error("Error parsing dateOfPurchase:", error);
+        }
+      }
     }
 
     const { page, limit } = paginationOptions;

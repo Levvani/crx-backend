@@ -31,7 +31,7 @@ export class CopartService {
       let jsonData = null;
       if (rawData) {
         try {
-          jsonData = JSON.parse(rawData);
+          jsonData = JSON.parse(rawData) as Record<string, unknown>;
           console.log("Parsed JSON data type:", typeof jsonData);
         } catch (parseError) {
           console.error("Error parsing JSON:", parseError);
@@ -39,7 +39,7 @@ export class CopartService {
           const jsonMatch = rawData.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             try {
-              jsonData = JSON.parse(jsonMatch[0]);
+              jsonData = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
               console.log(
                 "Extracted and parsed JSON data type:",
                 typeof jsonData,
@@ -55,7 +55,7 @@ export class CopartService {
       await page.close();
       await context.close();
 
-      return jsonData || rawData; // Return JSON if parsing succeeded, otherwise return the raw string
+      return jsonData as Record<string, unknown> | string; // Return typed JSON if parsing succeeded, otherwise return the raw string
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
