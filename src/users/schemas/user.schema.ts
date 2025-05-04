@@ -1,12 +1,12 @@
 // src/users/schemas/user.schema.ts
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
 
 export enum UserRole {
-  ADMIN = 'admin',
-  MODERATOR = 'moderator',
-  ACCOUNTANT = 'accountant',
-  DEALER = 'dealer',
+  ADMIN = "admin",
+  MODERATOR = "moderator",
+  ACCOUNTANT = "accountant",
+  DEALER = "dealer",
 }
 
 export type UserDocument = User & Document;
@@ -34,7 +34,7 @@ export class User {
   @Prop({ type: String, enum: UserRole, default: UserRole.DEALER })
   role: UserRole;
 
-  @Prop({ required: false, default: 'A' })
+  @Prop({ required: false, default: "A" })
   level: string;
 
   @Prop({ default: true })

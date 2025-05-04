@@ -15,7 +15,7 @@ async function bootstrap() {
     // Configure CORS
     const corsOptions: CorsOptions = {
       origin: [process.env.FRONTEND_URL, "http://localhost:4200"].filter(
-        Boolean
+        Boolean,
       ), // This removes any undefined values
       credentials: true,
     };
@@ -29,7 +29,7 @@ async function bootstrap() {
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
-      })
+      }),
     );
 
     const reflector = app.get(Reflector);
@@ -44,7 +44,7 @@ async function bootstrap() {
   } catch (error) {
     logger.error(
       `Failed to bootstrap application: ${error instanceof Error ? error.message : "Unknown error"}`,
-      error instanceof Error ? error.stack : "No stack trace available"
+      error instanceof Error ? error.stack : "No stack trace available",
     );
     process.exit(1);
   }
