@@ -4,12 +4,12 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
-} from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import * as bcrypt from 'bcrypt';
-import { User, UserDocument, UserRole } from './schemas/user.schema';
-import { CreateUserDto } from './dto/create-user.dto';
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import * as bcrypt from "bcrypt";
+import { User, UserDocument, UserRole } from "./schemas/user.schema";
+import { CreateUserDto } from "./dto/create-user.dto";
 
 interface PaginationOptions {
   page: number;
@@ -34,7 +34,7 @@ export class UsersService {
       });
 
       if (existingUser) {
-        throw new ConflictException('Username or email already exists');
+        throw new ConflictException("Username or email already exists");
       }
 
       // Hash the password
@@ -51,7 +51,7 @@ export class UsersService {
       let nextUserID = 1; // Default to 1 if no users exist
       if (
         highestUser &&
-        typeof highestUser.userID === 'number' &&
+        typeof highestUser.userID === "number" &&
         !isNaN(highestUser.userID)
       ) {
         nextUserID = highestUser.userID + 1;
@@ -60,10 +60,10 @@ export class UsersService {
       // If userID was provided in the DTO and it's valid, use it
       if (createUserDto.userID !== undefined) {
         if (
-          typeof createUserDto.userID !== 'number' ||
+          typeof createUserDto.userID !== "number" ||
           isNaN(createUserDto.userID)
         ) {
-          throw new BadRequestException('userID must be a valid number');
+          throw new BadRequestException("userID must be a valid number");
         }
         nextUserID = createUserDto.userID;
       }
@@ -77,20 +77,20 @@ export class UsersService {
         password: hashedPassword,
         email: createUserDto.email,
         role: createUserDto.role || UserRole.DEALER,
-        level: createUserDto.level || 'A',
+        level: createUserDto.level || "A",
         totalBalance: createUserDto.totalBalance || 0,
         profitBalance: createUserDto.profitBalance || 0,
         phoneNumber: createUserDto.phoneNumber || null,
       });
 
-      console.log('Attempting to save user:', {
+      console.log("Attempting to save user:", {
         ...newUser.toObject(),
-        password: '[REDACTED]',
+        password: "[REDACTED]",
       });
 
       return await newUser.save();
     } catch (error) {
-      console.error('Error creating user:', error);
+      console.error("Error creating user:", error);
       throw error;
     }
   }
@@ -131,25 +131,25 @@ export class UsersService {
       filter.role = role;
     }
 
-    if (level !== undefined && level !== null && level !== '') {
+    if (level !== undefined && level !== null && level !== "") {
       console.log(`Adding level filter: ${level}`);
       filter.level = level;
     }
 
-    if (search !== undefined && search !== null && search !== '') {
+    if (search !== undefined && search !== null && search !== "") {
       console.log(`Adding search filter for: ${search}`);
       filter.$or = [
-        { username: { $regex: search, $options: 'i' } },
-        { firstname: { $regex: search, $options: 'i' } },
-        { lastname: { $regex: search, $options: 'i' } },
+        { username: { $regex: search, $options: "i" } },
+        { firstname: { $regex: search, $options: "i" } },
+        { lastname: { $regex: search, $options: "i" } },
       ];
     }
 
-    console.log('MongoDB filter:', JSON.stringify(filter));
+    console.log("MongoDB filter:", JSON.stringify(filter));
 
     // Check if filter is empty
     if (Object.keys(filter).length === 0) {
-      console.log('Warning: Filter is empty - will return all results');
+      console.log("Warning: Filter is empty - will return all results");
     }
 
     const [users, total] = await Promise.all([

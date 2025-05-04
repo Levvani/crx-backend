@@ -8,16 +8,16 @@ import {
   Request,
   HttpCode,
   HttpStatus,
-} from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { Public } from './decorators/public.decorator';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { Request as ExpressRequest } from 'express';
-import { UserRole } from '../users/schemas/user.schema';
-import { User } from '../users/schemas/user.schema';
+} from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { AuthService } from "./auth.service";
+import { UsersService } from "../users/users.service";
+import { CreateUserDto } from "../users/dto/create-user.dto";
+import { Public } from "./decorators/public.decorator";
+import { ChangePasswordDto } from "./dto/change-password.dto";
+import { Request as ExpressRequest } from "express";
+import { UserRole } from "../users/schemas/user.schema";
+import { User } from "../users/schemas/user.schema";
 
 // Define the JWT payload type returned by the JWT strategy
 interface JwtUser {
@@ -31,7 +31,7 @@ interface RequestWithUser extends ExpressRequest {
   user: JwtUser;
 }
 
-@Controller('auth')
+@Controller("auth")
 export class AuthController {
   constructor(
     private authService: AuthService,
@@ -39,12 +39,12 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Post('register')
+  @Post("register")
   async register(@Body() createUserDto: CreateUserDto) {
     try {
-      console.log('Registration request received:', {
+      console.log("Registration request received:", {
         ...createUserDto,
-        password: '[REDACTED]',
+        password: "[REDACTED]",
       });
 
       const user = await this.usersService.create(createUserDto);
@@ -54,32 +54,32 @@ export class AuthController {
       const { password, ...result } = user.toObject() as User;
       return result;
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error("Registration error:", error);
       throw error;
     }
   }
 
   @Public()
-  @UseGuards(AuthGuard('local'))
-  @Post('login')
+  @UseGuards(AuthGuard("local"))
+  @Post("login")
   login(@Request() req: RequestWithUser) {
     // The req.user already has the correct format with userId
     return this.authService.login(req.user);
   }
 
-  @UseGuards(AuthGuard('jwt'))
-  @Get('profile')
+  @UseGuards(AuthGuard("jwt"))
+  @Get("profile")
   getProfile(@Request() req: RequestWithUser) {
     return req.user;
   }
 
-  @Post('logout')
+  @Post("logout")
   @HttpCode(HttpStatus.OK)
   logout() {
-    return { message: 'Logged out successfully' };
+    return { message: "Logged out successfully" };
   }
 
-  @Post('change-password')
+  @Post("change-password")
   @HttpCode(HttpStatus.OK)
   async changePassword(
     @Request() req: RequestWithUser,
@@ -90,6 +90,6 @@ export class AuthController {
       changePasswordDto.currentPassword,
       changePasswordDto.newPassword,
     );
-    return { message: 'Password changed successfully' };
+    return { message: "Password changed successfully" };
   }
 }

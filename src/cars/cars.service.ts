@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Car, CarDocument } from './schemas/car.schema';
-import { CreateCarDto } from './dto/create-car.dto';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { Car, CarDocument } from "./schemas/car.schema";
+import { CreateCarDto } from "./dto/create-car.dto";
 
 interface CarFilters {
   vinCode?: string;
@@ -32,7 +32,7 @@ export class CarsService {
     const newCar = new this.carModel({
       ...createCarDto,
       carID: nextCarID,
-      status: 'Purchased',
+      status: "Purchased",
       photos: photos?.map((photo) => `/uploads/cars/${photo.filename}`) || [],
     });
     return newCar.save();

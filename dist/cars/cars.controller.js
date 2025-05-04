@@ -23,6 +23,7 @@ const roles_guard_1 = require("../auth/guards/roles.guard");
 const roles_decorator_1 = require("../auth/decorators/roles.decorator");
 const user_schema_1 = require("../users/schemas/user.schema");
 const multer_config_1 = require("../config/multer.config");
+const public_decorator_1 = require("../auth/decorators/public.decorator");
 let CarsController = class CarsController {
     constructor(carsService) {
         this.carsService = carsService;
@@ -60,8 +61,6 @@ __decorate([
 ], CarsController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)(user_schema_1.UserRole.ADMIN, user_schema_1.UserRole.MODERATOR),
     __param(0, (0, common_1.Query)()),
     __param(1, (0, common_1.Query)('vinCode')),
     __param(2, (0, common_1.Query)('containerNumber')),
@@ -82,6 +81,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], CarsController.prototype, "delete", null);
 exports.CarsController = CarsController = __decorate([
+    (0, public_decorator_1.Public)(),
     (0, common_1.Controller)('cars'),
     __metadata("design:paramtypes", [cars_service_1.CarsService])
 ], CarsController);
