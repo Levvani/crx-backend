@@ -1,9 +1,9 @@
-import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { Request as ExpressRequest } from 'express';
-import { UserRole } from '../users/schemas/user.schema';
+import { AuthService } from "./auth.service";
+import { UsersService } from "../users/users.service";
+import { CreateUserDto } from "../users/dto/create-user.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
+import { Request as ExpressRequest } from "express";
+import { UserRole } from "../users/schemas/user.schema";
 interface JwtUser {
     userId: string;
     username: string;

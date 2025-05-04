@@ -38,13 +38,13 @@ let AuthController = class AuthController {
     }
     async register(createUserDto) {
         try {
-            console.log('Registration request received:', Object.assign(Object.assign({}, createUserDto), { password: '[REDACTED]' }));
+            console.log("Registration request received:", Object.assign(Object.assign({}, createUserDto), { password: "[REDACTED]" }));
             const user = await this.usersService.create(createUserDto);
             const _a = user.toObject(), { password } = _a, result = __rest(_a, ["password"]);
             return result;
         }
         catch (error) {
-            console.error('Registration error:', error);
+            console.error("Registration error:", error);
             throw error;
         }
     }
@@ -55,17 +55,17 @@ let AuthController = class AuthController {
         return req.user;
     }
     logout() {
-        return { message: 'Logged out successfully' };
+        return { message: "Logged out successfully" };
     }
     async changePassword(req, changePasswordDto) {
         await this.authService.changePassword(req.user.userId, changePasswordDto.currentPassword, changePasswordDto.newPassword);
-        return { message: 'Password changed successfully' };
+        return { message: "Password changed successfully" };
     }
 };
 exports.AuthController = AuthController;
 __decorate([
     (0, public_decorator_1.Public)(),
-    (0, common_1.Post)('register'),
+    (0, common_1.Post)("register"),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [create_user_dto_1.CreateUserDto]),
@@ -73,30 +73,30 @@ __decorate([
 ], AuthController.prototype, "register", null);
 __decorate([
     (0, public_decorator_1.Public)(),
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('local')),
-    (0, common_1.Post)('login'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)("local")),
+    (0, common_1.Post)("login"),
     __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "login", null);
 __decorate([
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
-    (0, common_1.Get)('profile'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)("jwt")),
+    (0, common_1.Get)("profile"),
     __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "getProfile", null);
 __decorate([
-    (0, common_1.Post)('logout'),
+    (0, common_1.Post)("logout"),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "logout", null);
 __decorate([
-    (0, common_1.Post)('change-password'),
+    (0, common_1.Post)("change-password"),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Body)()),
@@ -105,7 +105,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "changePassword", null);
 exports.AuthController = AuthController = __decorate([
-    (0, common_1.Controller)('auth'),
+    (0, common_1.Controller)("auth"),
     __metadata("design:paramtypes", [auth_service_1.AuthService,
         users_service_1.UsersService])
 ], AuthController);

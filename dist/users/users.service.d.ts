@@ -1,6 +1,6 @@
-import { Model } from 'mongoose';
-import { UserDocument, UserRole } from './schemas/user.schema';
-import { CreateUserDto } from './dto/create-user.dto';
+import { Model } from "mongoose";
+import { UserDocument, UserRole } from "./schemas/user.schema";
+import { CreateUserDto } from "./dto/create-user.dto";
 interface PaginationOptions {
     page: number;
     limit: number;

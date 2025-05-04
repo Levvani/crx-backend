@@ -24,7 +24,7 @@ let CarsService = class CarsService {
     async create(createCarDto, photos) {
         const highestCar = await this.carModel.findOne().sort({ carID: -1 }).exec();
         const nextCarID = highestCar ? highestCar.carID + 1 : 1;
-        const newCar = new this.carModel(Object.assign(Object.assign({}, createCarDto), { carID: nextCarID, status: 'Purchased', photos: (photos === null || photos === void 0 ? void 0 : photos.map((photo) => `/uploads/cars/${photo.filename}`)) || [] }));
+        const newCar = new this.carModel(Object.assign(Object.assign({}, createCarDto), { carID: nextCarID, status: "Purchased", photos: (photos === null || photos === void 0 ? void 0 : photos.map((photo) => `/uploads/cars/${photo.filename}`)) || [] }));
         return newCar.save();
     }
     async findAll(filters, paginationOptions = { page: 1, limit: 25 }) {

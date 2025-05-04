@@ -31,7 +31,7 @@ let UsersService = class UsersService {
                 ],
             });
             if (existingUser) {
-                throw new common_1.ConflictException('Username or email already exists');
+                throw new common_1.ConflictException("Username or email already exists");
             }
             const salt = await bcrypt.genSalt();
             const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
@@ -41,14 +41,14 @@ let UsersService = class UsersService {
                 .exec();
             let nextUserID = 1;
             if (highestUser &&
-                typeof highestUser.userID === 'number' &&
+                typeof highestUser.userID === "number" &&
                 !isNaN(highestUser.userID)) {
                 nextUserID = highestUser.userID + 1;
             }
             if (createUserDto.userID !== undefined) {
-                if (typeof createUserDto.userID !== 'number' ||
+                if (typeof createUserDto.userID !== "number" ||
                     isNaN(createUserDto.userID)) {
-                    throw new common_1.BadRequestException('userID must be a valid number');
+                    throw new common_1.BadRequestException("userID must be a valid number");
                 }
                 nextUserID = createUserDto.userID;
             }
@@ -60,16 +60,16 @@ let UsersService = class UsersService {
                 password: hashedPassword,
                 email: createUserDto.email,
                 role: createUserDto.role || user_schema_1.UserRole.DEALER,
-                level: createUserDto.level || 'A',
+                level: createUserDto.level || "A",
                 totalBalance: createUserDto.totalBalance || 0,
                 profitBalance: createUserDto.profitBalance || 0,
                 phoneNumber: createUserDto.phoneNumber || null,
             });
-            console.log('Attempting to save user:', Object.assign(Object.assign({}, newUser.toObject()), { password: '[REDACTED]' }));
+            console.log("Attempting to save user:", Object.assign(Object.assign({}, newUser.toObject()), { password: "[REDACTED]" }));
             return await newUser.save();
         }
         catch (error) {
-            console.error('Error creating user:', error);
+            console.error("Error creating user:", error);
             throw error;
         }
     }
@@ -95,21 +95,21 @@ let UsersService = class UsersService {
             console.log(`Adding role filter: ${role}`);
             filter.role = role;
         }
-        if (level !== undefined && level !== null && level !== '') {
+        if (level !== undefined && level !== null && level !== "") {
             console.log(`Adding level filter: ${level}`);
             filter.level = level;
         }
-        if (search !== undefined && search !== null && search !== '') {
+        if (search !== undefined && search !== null && search !== "") {
             console.log(`Adding search filter for: ${search}`);
             filter.$or = [
-                { username: { $regex: search, $options: 'i' } },
-                { firstname: { $regex: search, $options: 'i' } },
-                { lastname: { $regex: search, $options: 'i' } },
+                { username: { $regex: search, $options: "i" } },
+                { firstname: { $regex: search, $options: "i" } },
+                { lastname: { $regex: search, $options: "i" } },
             ];
         }
-        console.log('MongoDB filter:', JSON.stringify(filter));
+        console.log("MongoDB filter:", JSON.stringify(filter));
         if (Object.keys(filter).length === 0) {
-            console.log('Warning: Filter is empty - will return all results');
+            console.log("Warning: Filter is empty - will return all results");
         }
         const [users, total] = await Promise.all([
             this.userModel

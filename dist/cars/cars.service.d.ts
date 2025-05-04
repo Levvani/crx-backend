@@ -1,6 +1,6 @@
-import { Model } from 'mongoose';
-import { CarDocument } from './schemas/car.schema';
-import { CreateCarDto } from './dto/create-car.dto';
+import { Model } from "mongoose";
+import { CarDocument } from "./schemas/car.schema";
+import { CreateCarDto } from "./dto/create-car.dto";
 interface CarFilters {
     vinCode?: string;
     containerNumber?: string;
