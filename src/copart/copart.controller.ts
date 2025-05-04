@@ -1,13 +1,12 @@
-import { Controller, Body, Get } from "@nestjs/common";
+import { Controller, Query, Get } from "@nestjs/common";
 import { CopartService } from "./copart.service";
-import { CarDetailsDto } from "./dto/car-details.dto";
 
 @Controller("copart")
 export class CopartController {
   constructor(private readonly copartService: CopartService) {}
 
   @Get("carDetailsByLot")
-  async getCarDetailsByLot(@Body() carDetailsDto: CarDetailsDto) {
-    return await this.copartService.getCarDetailsByLot(carDetailsDto.lotNumber);
+  async getCarDetailsByLot(@Query("lotNumber") lotNumber: string) {
+    return await this.copartService.getCarDetailsByLot(lotNumber);
   }
 }
