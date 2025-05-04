@@ -16,13 +16,22 @@ export class CopartService {
   async getCarDetailsByLot(lotNumber: string) {
     let page: Page | null = null;
     try {
+      console.log(`Starting to fetch details for lot: ${lotNumber}`);
+
+      console.log("Initializing browser...");
       const browser = await this.getBrowser();
+
+      console.log("Creating browser context...");
       const context = await browser.newContext();
+
+      console.log("Creating new page...");
       page = await context.newPage();
 
       const url = `https://www.copart.com/public/data/lotdetails/solr/${lotNumber}`;
+      console.log(`Navigating to URL: ${url}`);
       await page.goto(url);
 
+      console.log("Extracting data from page...");
       // Wait for and extract the data
       const rawData = await page.getByText('{"returnCode":1,"').textContent();
       console.log("Raw data:", rawData);
