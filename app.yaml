@@ -11,4 +11,4 @@ handlers:
 - url: /.*
   script: auto
 
-entrypoint: npx playwright install --with-deps chromium && npm run start:prod
+entrypoint: npm install -g playwright && npx playwright install --with-deps chromium && npm run start:prod
