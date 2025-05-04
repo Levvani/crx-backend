@@ -24,14 +24,38 @@ export class CopartService {
       await page.goto(url);
 
       // Wait for and extract the data
-      const data = await page.getByText('{"returnCode":1,"').textContent();
-      console.log(data);
+      const rawData = await page.getByText('{"returnCode":1,"').textContent();
+      console.log("Raw data:", rawData);
+
+      // Convert string to JSON
+      let jsonData = null;
+      if (rawData) {
+        try {
+          jsonData = JSON.parse(rawData);
+          console.log("Parsed JSON data type:", typeof jsonData);
+        } catch (parseError) {
+          console.error("Error parsing JSON:", parseError);
+          // Try to extract valid JSON from the string if it contains extra text
+          const jsonMatch = rawData.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              jsonData = JSON.parse(jsonMatch[0]);
+              console.log(
+                "Extracted and parsed JSON data type:",
+                typeof jsonData,
+              );
+            } catch (extractError) {
+              console.error("Error parsing extracted JSON:", extractError);
+            }
+          }
+        }
+      }
 
       // Clean up resources
       await page.close();
       await context.close();
 
-      return data;
+      return jsonData || rawData; // Return JSON if parsing succeeded, otherwise return the raw string
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
