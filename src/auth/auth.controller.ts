@@ -24,6 +24,10 @@ interface JwtUser {
   userId: string;
   username: string;
   role: UserRole;
+  firstname?: string;
+  lastname?: string;
+  profitBalance?: number;
+  totalBalance?: number;
 }
 
 // Extend Express.Request to include our user type
@@ -62,9 +66,22 @@ export class AuthController {
   @Public()
   @UseGuards(AuthGuard("local"))
   @Post("login")
-  login(@Request() req: RequestWithUser) {
-    // The req.user already has the correct format with userId
-    return this.authService.login(req.user);
+  async login(@Request() req: RequestWithUser) {
+    // Get the complete user data from the database
+    const user = await this.usersService.findByUsername(req.user.username);
+
+    // Create a user object with all the required fields
+    const userWithAdditionalInfo = {
+      ...req.user,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      profitBalance: user.profitBalance,
+      totalBalance: user.totalBalance,
+      level: user.level,
+    };
+
+    // Pass the enhanced user object to the login method
+    return this.authService.login(userWithAdditionalInfo);
   }
 
   @UseGuards(AuthGuard("jwt"))

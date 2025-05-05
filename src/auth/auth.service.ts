@@ -1,10 +1,10 @@
 // src/auth/auth.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
-import { UsersService } from '../users/users.service';
-import { JwtPayload } from './interfaces/jwt-payload.interface';
-import { User, UserRole } from '../users/schemas/user.schema';
+import { Injectable, BadRequestException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { UsersService } from "../users/users.service";
+import { JwtPayload } from "./interfaces/jwt-payload.interface";
+import { User, UserRole } from "../users/schemas/user.schema";
 
 // Define the interface for the user object as received from the JWT strategy
 interface JwtUser {
@@ -13,6 +13,11 @@ interface JwtUser {
   role: UserRole;
   email?: string;
   _id?: string;
+  firstname?: string;
+  lastname?: string;
+  profitBalance?: number;
+  totalBalance?: number;
+  level?: string | null;
 }
 
 @Injectable()
@@ -43,6 +48,7 @@ export class AuthService {
     }
   }
 
+  // In the AuthService class, update the login method
   login(user: JwtUser) {
     const payload: JwtPayload = {
       username: user.username,
@@ -57,6 +63,11 @@ export class AuthService {
         username: user.username,
         email: user.email,
         role: user.role,
+        firstname: user.firstname || null,
+        lastname: user.lastname || null,
+        profitBalance: user.profitBalance || 0,
+        totalBalance: user.totalBalance || 0,
+        level: user.level || null,
       },
     };
   }
@@ -75,7 +86,7 @@ export class AuthService {
       user.password,
     );
     if (!isPasswordValid) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException("Current password is incorrect");
     }
 
     // Hash the new password

@@ -1,8 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Car, CarDocument } from "./schemas/car.schema";
 import { CreateCarDto } from "./dto/create-car.dto";
+// Import the UpdateCarDto
+import { UpdateCarDto } from "./dto/update-car.dto";
 
 interface CarFilters {
   vinCode?: string;
@@ -36,6 +38,36 @@ export class CarsService {
       photos: photos?.map((photo) => `/uploads/cars/${photo.filename}`) || [],
     });
     return newCar.save();
+  }
+
+  async update(
+    carID: number,
+    updateCarDto: UpdateCarDto,
+  ): Promise<CarDocument> {
+    // Find the car by ID
+    const car = await this.carModel.findOne({ carID }).exec();
+    if (!car) {
+      throw new NotFoundException(`Car with ID ${carID} not found`);
+    }
+
+    // Update the car properties
+    const updateData: any = { ...updateCarDto };
+
+    // Ensure carID cannot be updated even if it's somehow included in the DTO
+    if ("carID" in updateData) {
+      delete (updateData as { carID?: number }).carID;
+    }
+
+    // Update the car and return the updated document
+    const updatedCar = await this.carModel
+      .findOneAndUpdate(
+        { carID },
+        { $set: updateData as Partial<CarDocument> },
+        { new: true }, // Return the updated document
+      )
+      .exec();
+
+    return updatedCar;
   }
 
   async findAll(
@@ -103,5 +135,13 @@ export class CarsService {
 
   async delete(carID: number): Promise<CarDocument> {
     return this.carModel.findOneAndDelete({ carID }).exec();
+  }
+
+  async findOne(carID: number): Promise<CarDocument> {
+    const car = await this.carModel.findOne({ carID }).exec();
+    if (!car) {
+      throw new NotFoundException(`Car with ID ${carID} not found`);
+    }
+    return car;
   }
 }

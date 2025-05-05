@@ -34,7 +34,7 @@ export class User {
   @Prop({ type: String, enum: UserRole, default: UserRole.DEALER })
   role: UserRole;
 
-  @Prop({ required: false, default: "A" })
+  @Prop({ required: false, default: null })
   level: string;
 
   @Prop({ default: true })

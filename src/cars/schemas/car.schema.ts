@@ -64,9 +64,6 @@ export class Car {
   @Prop({ default: Date.now })
   createdAt: Date;
 
-  @Prop({ type: [String], default: [] })
-  photos: string[];
-
   @Prop({ required: false })
   status: string;
 
