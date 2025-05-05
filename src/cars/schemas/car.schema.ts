@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
 
 export type CarDocument = Car & Document;
 
@@ -14,16 +14,10 @@ export class Car {
   vinCode: string;
 
   @Prop({ required: true })
-  brand: string;
-
-  @Prop({ required: true })
-  model: string;
-
-  @Prop({ required: true })
-  year: number;
+  carName: string;
 
   @Prop({ required: false })
-  km: number;
+  location: string;
 
   @Prop({ required: false })
   lotNumber: string;
@@ -35,28 +29,10 @@ export class Car {
   dateOfPurchase: Date;
 
   @Prop({ required: false })
-  dateOfAuctionPayment: Date;
-
-  @Prop({ required: false })
-  dateOfStorageDelivery: Date;
-
-  @Prop({ required: false })
-  dateOfReceivingDocs: Date;
-
-  @Prop({ required: false })
-  sender: string;
-
-  @Prop({ required: false })
-  receiver: string;
-
-  @Prop({ required: false })
   comment: string;
 
   @Prop({ required: false })
   shippingLine: string;
-
-  @Prop({ required: false })
-  dateOfContainerArrival: Date;
 
   @Prop({ required: false })
   dateOfContainerOpening: Date;
@@ -77,10 +53,10 @@ export class Car {
   auctionPrice: number;
 
   @Prop({ required: false })
-  amountToPay: number;
+  transportationPrice: number;
 
   @Prop({ required: false })
-  totalAmountPaid: number;
+  totalCost: number;
 
   @Prop({ required: false })
   containerNumber: string;
@@ -95,16 +71,16 @@ export class Car {
   status: string;
 
   @Prop({ required: false, default: false })
-  hybridElectric: boolean;
+  isHybridOrElectric: boolean;
 
   @Prop({ required: false, default: false })
-  offsite: boolean;
+  isOffsite: boolean;
 
   @Prop({ required: false })
-  fine: number;
+  auctionFine: number;
 
   @Prop({ required: false })
-  toBeFinanced: number;
+  financingAmount: number;
 }
 
 export const CarSchema = SchemaFactory.createForClass(Car);

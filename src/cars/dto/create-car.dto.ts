@@ -3,10 +3,10 @@ import {
   IsNumber,
   IsString,
   Min,
-  Max,
   IsOptional,
   IsDate,
-} from 'class-validator';
+  IsBoolean,
+} from "class-validator";
 
 export class CreateCarDto {
   @IsOptional()
@@ -23,21 +23,11 @@ export class CreateCarDto {
 
   @IsNotEmpty()
   @IsString()
-  brand: string;
-
-  @IsNotEmpty()
-  @IsString()
-  model: string;
-
-  @IsNotEmpty()
-  @IsNumber()
-  @Max(new Date().getFullYear() + 1)
-  year: number;
+  carName: string;
 
   @IsOptional()
-  @IsNumber()
-  @Min(0)
-  km: number;
+  @IsString()
+  location: string;
 
   @IsOptional()
   @IsString()
@@ -52,36 +42,12 @@ export class CreateCarDto {
   dateOfPurchase: Date;
 
   @IsOptional()
-  @IsDate()
-  dateOfAuctionPayment: Date;
-
-  @IsOptional()
-  @IsDate()
-  dateOfStorageDelivery: Date;
-
-  @IsOptional()
-  @IsDate()
-  dateOfReceivingDocs: Date;
-
-  @IsOptional()
-  @IsString()
-  sender: string;
-
-  @IsOptional()
-  @IsString()
-  receiver: string;
-
-  @IsOptional()
   @IsString()
   comment: string;
 
   @IsOptional()
   @IsString()
   shippingLine: string;
-
-  @IsOptional()
-  @IsDate()
-  dateOfContainerArrival: Date;
 
   @IsOptional()
   @IsDate()
@@ -111,12 +77,12 @@ export class CreateCarDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  amountToPay: number;
+  transportationPrice: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
-  totalAmountPaid: number;
+  totalCost: number;
 
   @IsOptional()
   @IsString()
@@ -127,18 +93,20 @@ export class CreateCarDto {
   status: string;
 
   @IsOptional()
-  hybridElectric: boolean;
+  @IsBoolean()
+  isHybridOrElectric: boolean;
 
   @IsOptional()
-  offsite: boolean;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  fine: number;
+  @IsBoolean()
+  isOffsite: boolean;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
-  toBeFinanced: number;
+  auctionFine: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  financingAmount: number;
 }
