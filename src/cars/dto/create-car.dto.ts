@@ -4,7 +4,6 @@ import {
   IsString,
   Min,
   IsOptional,
-  IsDate,
   IsBoolean,
 } from "class-validator";
 
@@ -38,8 +37,8 @@ export class CreateCarDto {
   auctionName: string;
 
   @IsOptional()
-  @IsDate()
-  dateOfPurchase: Date;
+  @IsString()
+  dateOfPurchase: string;
 
   @IsOptional()
   @IsString()
@@ -50,12 +49,12 @@ export class CreateCarDto {
   shippingLine: string;
 
   @IsOptional()
-  @IsDate()
-  dateOfContainerOpening: Date;
+  @IsString()
+  dateOfContainerOpening: string;
 
   @IsOptional()
-  @IsDate()
-  greenDate: Date;
+  @IsString()
+  greenDate: string;
 
   @IsOptional()
   @IsString()

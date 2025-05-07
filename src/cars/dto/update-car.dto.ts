@@ -3,7 +3,6 @@ import {
   IsNumber,
   Min,
   IsOptional,
-  IsDate,
   IsBoolean,
 } from "class-validator";
 
@@ -33,8 +32,8 @@ export class UpdateCarDto {
   auctionName?: string;
 
   @IsOptional()
-  @IsDate()
-  dateOfPurchase?: Date;
+  @IsString()
+  dateOfPurchase?: string;
 
   @IsOptional()
   @IsString()
@@ -45,12 +44,12 @@ export class UpdateCarDto {
   shippingLine?: string;
 
   @IsOptional()
-  @IsDate()
-  dateOfContainerOpening?: Date;
+  @IsString()
+  dateOfContainerOpening?: string;
 
   @IsOptional()
-  @IsDate()
-  greenDate?: Date;
+  @IsString()
+  greenDate?: string;
 
   @IsOptional()
   @IsString()

@@ -26,7 +26,7 @@ export class Car {
   auctionName: string;
 
   @Prop({ required: false })
-  dateOfPurchase: Date;
+  dateOfPurchase: string;
 
   @Prop({ required: false })
   comment: string;
@@ -35,10 +35,10 @@ export class Car {
   shippingLine: string;
 
   @Prop({ required: false })
-  dateOfContainerOpening: Date;
+  dateOfContainerOpening: string;
 
   @Prop({ required: false })
-  greenDate: Date;
+  greenDate: string;
 
   @Prop({ required: false })
   buyer: string;

@@ -94,20 +94,7 @@ export class CarsService {
       if (filters.status)
         query.status = { $regex: new RegExp(filters.status, "i") };
       if (filters.dateOfPurchase) {
-        try {
-          // Assuming dateOfPurchase is sent as a string in ISO format (YYYY-MM-DD)
-          const date = new Date(filters.dateOfPurchase);
-          // Create a range for the entire day
-          const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-          const endOfDay = new Date(date.setHours(23, 59, 59, 999));
-
-          query.dateOfPurchase = {
-            $gte: startOfDay,
-            $lte: endOfDay,
-          };
-        } catch (error) {
-          console.error("Error parsing dateOfPurchase:", error);
-        }
+        query.dateOfPurchase = filters.dateOfPurchase;
       }
     }
 
