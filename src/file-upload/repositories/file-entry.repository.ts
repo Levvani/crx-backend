@@ -1,13 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { FileEntry, FileEntryDocument } from '../schemas/file-entry.schema';
-import { FileEntryDto } from '../file-upload.service';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { FileEntry, FileEntryDocument } from "../schemas/file-entry.schema";
+import { FileEntryDto } from "../file-upload.service";
 
 @Injectable()
 export class FileEntryRepository {
   constructor(
-    @InjectModel(FileEntry.name) private fileEntryModel: Model<FileEntryDocument>
+    @InjectModel(FileEntry.name)
+    private fileEntryModel: Model<FileEntryDocument>,
   ) {}
 
   /**
@@ -16,10 +17,10 @@ export class FileEntryRepository {
   async saveMany(entries: FileEntryDto[]): Promise<FileEntry[]> {
     try {
       // Create a batch of documents to insert
-      const documents = entries.map(entry => ({
+      const documents = entries.map((entry) => ({
         title: entry.title,
         description: entry.description,
-        createdAt: new Date()
+        createdAt: new Date(),
       }));
 
       // Insert all documents at once if there are any
@@ -28,7 +29,7 @@ export class FileEntryRepository {
       }
       return [];
     } catch (error) {
-      console.error('Error saving file entries to database:', error.message);
+      console.error("Error saving file entries to database:", error.message);
       throw error;
     }
   }

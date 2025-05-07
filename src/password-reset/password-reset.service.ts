@@ -3,17 +3,17 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
-} from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
 import {
   PasswordReset,
   PasswordResetDocument,
-} from './schemas/password-reset.schema';
-import { UsersService } from '../users/users.service';
-import { MailerService } from '@nestjs-modules/mailer';
-import { randomBytes } from 'crypto';
-import * as bcrypt from 'bcrypt';
+} from "./schemas/password-reset.schema";
+import { UsersService } from "../users/users.service";
+import { MailerService } from "@nestjs-modules/mailer";
+import { randomBytes } from "crypto";
+import * as bcrypt from "bcrypt";
 
 class EmailServiceError extends Error {
   constructor(
@@ -21,14 +21,14 @@ class EmailServiceError extends Error {
     public readonly details?: any,
   ) {
     super(message);
-    this.name = 'EmailServiceError';
+    this.name = "EmailServiceError";
   }
 }
 
 class SmtpConfigError extends EmailServiceError {
   constructor() {
-    super('SMTP configuration is incomplete');
-    this.name = 'SmtpConfigError';
+    super("SMTP configuration is incomplete");
+    this.name = "SmtpConfigError";
   }
 }
 
@@ -46,11 +46,11 @@ export class PasswordResetService {
       // Check if user exists
       const user = await this.usersService.findByEmail(email);
       if (!user) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundException("User not found");
       }
 
       // Generate reset token
-      const token = randomBytes(32).toString('hex');
+      const token = randomBytes(32).toString("hex");
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
 
@@ -63,11 +63,11 @@ export class PasswordResetService {
         });
       } catch (dbError) {
         console.error(
-          'Failed to create password reset token in database:',
+          "Failed to create password reset token in database:",
           dbError,
         );
         throw new InternalServerErrorException(
-          'Failed to process password reset request',
+          "Failed to process password reset request",
         );
       }
 
@@ -80,7 +80,7 @@ export class PasswordResetService {
         !process.env.FRONTEND_URL
       ) {
         const error = new SmtpConfigError();
-        console.error('SMTP configuration error:', {
+        console.error("SMTP configuration error:", {
           host: !!process.env.SMTP_HOST,
           port: !!process.env.SMTP_PORT,
           user: !!process.env.SMTP_USER,
@@ -94,14 +94,14 @@ export class PasswordResetService {
       try {
         await this.mailerService.sendMail({
           to: email,
-          subject: 'Password Reset Request',
+          subject: "Password Reset Request",
           headers: {
-            'X-Priority': '1',
-            'X-MSMail-Priority': 'High',
-            Importance: 'high',
-            'List-Unsubscribe': `<${process.env.FRONTEND_URL}/unsubscribe>`,
-            'X-Report-Abuse': `${process.env.FRONTEND_URL}/report-abuse`,
-            'Feedback-ID': 'password-reset:crx-platform',
+            "X-Priority": "1",
+            "X-MSMail-Priority": "High",
+            Importance: "high",
+            "List-Unsubscribe": `<${process.env.FRONTEND_URL}/unsubscribe>`,
+            "X-Report-Abuse": `${process.env.FRONTEND_URL}/report-abuse`,
+            "Feedback-ID": "password-reset:crx-platform",
           },
           html: `
             <!DOCTYPE html>
@@ -136,18 +136,18 @@ export class PasswordResetService {
           `,
         });
       } catch (emailError) {
-        console.error('Failed to send password reset email:', {
+        console.error("Failed to send password reset email:", {
           error: emailError,
           email,
           timestamp: new Date().toISOString(),
         });
         throw new EmailServiceError(
-          'Failed to send password reset email',
+          "Failed to send password reset email",
           emailError,
         );
       }
     } catch (error) {
-      console.error('Error in createPasswordResetToken:', {
+      console.error("Error in createPasswordResetToken:", {
         error: error.message,
         type: error.name,
         timestamp: new Date().toISOString(),
@@ -166,7 +166,7 @@ export class PasswordResetService {
 
       // For any other unexpected errors, throw a generic error
       throw new InternalServerErrorException(
-        'An unexpected error occurred while processing your request',
+        "An unexpected error occurred while processing your request",
       );
     }
   }
@@ -181,7 +181,7 @@ export class PasswordResetService {
       });
 
       if (!resetRequest) {
-        throw new BadRequestException('Invalid or expired reset token');
+        throw new BadRequestException("Invalid or expired reset token");
       }
 
       // Hash new password
@@ -190,12 +190,12 @@ export class PasswordResetService {
         const salt = await bcrypt.genSalt();
         hashedPassword = await bcrypt.hash(newPassword, salt);
       } catch (hashError) {
-        console.error('Failed to hash new password:', {
+        console.error("Failed to hash new password:", {
           error: hashError,
           timestamp: new Date().toISOString(),
         });
         throw new InternalServerErrorException(
-          'Failed to process password reset',
+          "Failed to process password reset",
         );
       }
 
@@ -204,12 +204,12 @@ export class PasswordResetService {
         const user = await this.usersService.findByEmail(resetRequest.email);
         await this.usersService.updatePassword(user.id, hashedPassword);
       } catch (userError) {
-        console.error('Failed to update user password:', {
+        console.error("Failed to update user password:", {
           error: userError,
           email: resetRequest.email,
           timestamp: new Date().toISOString(),
         });
-        throw new InternalServerErrorException('Failed to update password');
+        throw new InternalServerErrorException("Failed to update password");
       }
 
       // Mark token as used
@@ -217,7 +217,7 @@ export class PasswordResetService {
         resetRequest.used = true;
         await resetRequest.save();
       } catch (tokenError) {
-        console.error('Failed to mark reset token as used:', {
+        console.error("Failed to mark reset token as used:", {
           error: tokenError,
           token: token,
           email: resetRequest.email,
@@ -227,7 +227,7 @@ export class PasswordResetService {
         // but log the error for monitoring
       }
     } catch (error) {
-      console.error('Error in resetPassword:', {
+      console.error("Error in resetPassword:", {
         error: error.message,
         type: error.name,
         token: token,
@@ -242,7 +242,7 @@ export class PasswordResetService {
       }
 
       throw new InternalServerErrorException(
-        'An unexpected error occurred while resetting your password',
+        "An unexpected error occurred while resetting your password",
       );
     }
   }

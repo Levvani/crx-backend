@@ -1,6 +1,6 @@
-import { IsOptional, IsInt, Min, Max, IsString, IsEnum } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
-import { UserRole } from '../schemas/user.schema';
+import { IsOptional, IsInt, Min, Max, IsString, IsEnum } from "class-validator";
+import { Type, Transform } from "class-transformer";
+import { UserRole } from "../schemas/user.schema";
 
 export class PaginationDto {
   @IsOptional()
@@ -19,7 +19,7 @@ export class PaginationDto {
   @IsOptional()
   @IsEnum(UserRole)
   @Transform(({ value }) => {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       return value.toLowerCase() as UserRole;
     }
     return value as UserRole;

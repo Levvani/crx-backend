@@ -49,7 +49,45 @@ export class UsersController {
     };
   }
 
-  @Get(":id")
+  @Get("dealers") // This specific route MUST come before the parameterized route
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  async findDealers(@Query() paginationDto: PaginationDto) {
+    try {
+      console.log("Fetching dealers with parameters:", paginationDto);
+
+      // Use the dedicated dealers method
+      const result = await this.usersService.findDealers({
+        page: paginationDto.page,
+        limit: paginationDto.limit,
+        level: paginationDto.level,
+        search: paginationDto.search,
+      });
+
+      // Remove password from each user - with safer conversion
+      const usersWithoutPassword = result.users.map((user) => {
+        // Check if user is a Mongoose document or plain object
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const userObj = user.toObject ? user.toObject() : user;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password, ...userData } = userObj as User;
+        return userData;
+      });
+
+      return {
+        users: usersWithoutPassword,
+        total: result.total,
+        totalPages: result.totalPages,
+        page: result.page,
+        limit: result.limit,
+      };
+    } catch (error) {
+      console.error("Error in findDealers:", error);
+      // Instead of throwing the error directly, return a proper error response
+      throw new Error("Internal server error while fetching dealers");
+    }
+  }
+
+  @Get(":id") // This parameterized route MUST come after specific routes
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.ACCOUNTANT)
   async findOne(@Param("id") id: string) {
     const user = await this.usersService.findById(id);

@@ -205,4 +205,54 @@ export class UsersService {
 
     return user;
   }
+
+  async findDealers(
+    paginationOptions: PaginationOptions = { page: 1, limit: 25 },
+  ): Promise<{
+    users: UserDocument[];
+    total: number;
+    totalPages: number;
+    page: number;
+    limit: number;
+  }> {
+    const { page, limit, level, search } = paginationOptions;
+    const skip = (page - 1) * limit;
+
+    // Build filter object with fixed dealer role
+    const filter: Record<string, any> = { role: UserRole.DEALER };
+
+    if (level !== undefined && level !== null && level !== "") {
+      console.log(`Adding level filter: ${level}`);
+      filter.level = level;
+    }
+
+    if (search !== undefined && search !== null && search !== "") {
+      console.log(`Adding search filter for: ${search}`);
+      filter.$or = [
+        { username: { $regex: search, $options: "i" } },
+        { firstname: { $regex: search, $options: "i" } },
+        { lastname: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    console.log("MongoDB filter for dealers:", JSON.stringify(filter));
+
+    const [users, total] = await Promise.all([
+      this.userModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      users,
+      total,
+      totalPages: Math.ceil(total / limit),
+      page,
+      limit,
+    };
+  }
 }
