@@ -115,20 +115,42 @@ export class CarsController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async findOne(@Param("carID", ParseIntPipe) carID: number): Promise<any> {
     const car = await this.carsService.findOne(carID);
-    // Transform the car to match the format used in findAll
+    // Return all fields from CreateCarDto plus the requested additional fields
     return {
+      // All fields from CreateCarDto
       carID: car.carID || null,
-      lotNumber: car.lotNumber || null,
-      vinCode: car.vinCode || null,
       username: car.username || null,
+      vinCode: car.vinCode || null,
       carName: car.carName || null,
-      buyer: car.buyer || null,
+      location: car.location || null,
+      lotNumber: car.lotNumber || null,
       auctionName: car.auctionName || null,
       dateOfPurchase: car.dateOfPurchase || null,
+      comment: car.comment || null,
       shippingLine: car.shippingLine || null,
+      dateOfContainerOpening: car.dateOfContainerOpening || null,
+      greenDate: car.greenDate || null,
+      buyer: car.buyer || null,
+      buyerPN: car.buyerPN || null,
+      buyerPhone: car.buyerPhone || null,
+      auctionPrice: car.auctionPrice || null,
+      transportationPrice: car.transportationPrice || null,
+      totalCost: car.totalCost || null,
       containerNumber: car.containerNumber || null,
-      balanceOfCar: 0, // Set to 0 by default as requested
-      image: "/assets/car-logo-icon-emblem-design-600nw-473088037.webp", // Use the image from assets folder
+      status: car.status || null,
+      isHybridOrElectric: car.isHybridOrElectric || false,
+      isOffsite: car.isOffsite || false,
+      auctionFine: car.auctionFine || null,
+      financingAmount: car.financingAmount || null,
+
+      // Additional fields with default values
+      paymentLeft: 0,
+      profitDifference: 0,
+
+      // Keep the image field from your original response
+      image: "/assets/car-logo-icon-emblem-design-600nw-473088037.webp",
+      // Remove balanceOfCar as it's being replaced by paymentLeft
+      // balanceOfCar: 0,
     };
   }
 

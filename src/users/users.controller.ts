@@ -12,13 +12,19 @@ import { AuthGuard } from "@nestjs/passport";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { UsersService } from "./users.service";
-import { User, UserRole } from "./schemas/user.schema";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { User, UserDocument, UserRole } from "./schemas/user.schema";
+import { NotFoundException } from "@nestjs/common";
 import { PaginationDto } from "./dto/pagination.dto";
 
 @Controller("users")
 @UseGuards(AuthGuard("jwt"), RolesGuard)
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+  ) {}
 
   @Get()
   @Roles(UserRole.ADMIN)
@@ -90,10 +96,32 @@ export class UsersController {
   @Get(":id") // This parameterized route MUST come after specific routes
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.ACCOUNTANT)
   async findOne(@Param("id") id: string) {
-    const user = await this.usersService.findById(id);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...result } = user.toObject() as User;
-    return result;
+    try {
+      // Try to parse as numeric ID first
+      const numericId = parseInt(id, 10);
+
+      // If it's a valid number, use findById which now uses userID
+      if (!isNaN(numericId)) {
+        const user = await this.usersService.findById(id);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password, ...result } = user.toObject() as User;
+        return result;
+      }
+      // If it's not a valid number, it might be a MongoDB ObjectId
+      else {
+        // Use Mongoose's findById directly for MongoDB _id
+        const user = await this.userModel.findById(id).exec();
+        if (!user) {
+          throw new NotFoundException(`User with MongoDB id ${id} not found`);
+        }
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password, ...result } = user.toObject() as User;
+        return result;
+      }
+    } catch (error) {
+      console.error(`Error finding user with id ${id}:`, error);
+      throw error;
+    }
   }
 
   @Put(":id/role")

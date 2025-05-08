@@ -104,10 +104,21 @@ export class UsersService {
   }
 
   async findById(id: string): Promise<UserDocument> {
-    const user = await this.userModel.findById(id).exec();
-    if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
+    // Convert string id to number for userID lookup
+    const numericId = parseInt(id, 10);
+
+    // Check if conversion was successful
+    if (isNaN(numericId)) {
+      throw new BadRequestException(`Invalid userID format: ${id}`);
     }
+
+    // Find by userID instead of MongoDB _id
+    const user = await this.userModel.findOne({ userID: numericId }).exec();
+
+    if (!user) {
+      throw new NotFoundException(`User with userID ${numericId} not found`);
+    }
+
     return user;
   }
 
@@ -172,12 +183,43 @@ export class UsersService {
   }
 
   async updateRole(id: string, role: UserRole): Promise<UserDocument> {
+    const numericId = parseInt(id, 10);
+
+    if (isNaN(numericId)) {
+      throw new BadRequestException(`Invalid userID format: ${id}`);
+    }
+
     const user = await this.userModel
-      .findByIdAndUpdate(id, { role }, { new: true })
+      .findOneAndUpdate({ userID: numericId }, { role }, { new: true })
       .exec();
 
     if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
+      throw new NotFoundException(`User with userID ${numericId} not found`);
+    }
+
+    return user;
+  }
+
+  async updatePassword(
+    id: string,
+    hashedPassword: string,
+  ): Promise<UserDocument> {
+    const numericId = parseInt(id, 10);
+
+    if (isNaN(numericId)) {
+      throw new BadRequestException(`Invalid userID format: ${id}`);
+    }
+
+    const user = await this.userModel
+      .findOneAndUpdate(
+        { userID: numericId },
+        { password: hashedPassword },
+        { new: true },
+      )
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException(`User with userID ${numericId} not found`);
     }
 
     return user;
@@ -188,21 +230,6 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User with email ${email} not found`);
     }
-    return user;
-  }
-
-  async updatePassword(
-    id: string,
-    hashedPassword: string,
-  ): Promise<UserDocument> {
-    const user = await this.userModel
-      .findByIdAndUpdate(id, { password: hashedPassword }, { new: true })
-      .exec();
-
-    if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
-    }
-
     return user;
   }
 
