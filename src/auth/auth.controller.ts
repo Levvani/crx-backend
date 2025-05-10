@@ -8,6 +8,9 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Req,
+  Res,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { AuthService } from "./auth.service";
@@ -15,7 +18,7 @@ import { UsersService } from "../users/users.service";
 import { CreateUserDto } from "../users/dto/create-user.dto";
 import { Public } from "./decorators/public.decorator";
 import { ChangePasswordDto } from "./dto/change-password.dto";
-import { Request as ExpressRequest } from "express";
+import { Request as ExpressRequest, Response } from "express";
 import { UserRole } from "../users/schemas/user.schema";
 import { User } from "../users/schemas/user.schema";
 
@@ -42,7 +45,6 @@ export class AuthController {
     private usersService: UsersService,
   ) {}
 
-  @Public()
   @Post("register")
   async register(@Body() createUserDto: CreateUserDto) {
     try {
@@ -66,7 +68,10 @@ export class AuthController {
   @Public()
   @UseGuards(AuthGuard("local"))
   @Post("login")
-  async login(@Request() req: RequestWithUser) {
+  async login(
+    @Request() req: RequestWithUser,
+    @Res({ passthrough: true }) response: Response,
+  ) {
     // Get the complete user data from the database
     const user = await this.usersService.findByUsername(req.user.username);
 
@@ -80,8 +85,8 @@ export class AuthController {
       level: user.level,
     };
 
-    // Pass the enhanced user object to the login method
-    return this.authService.login(userWithAdditionalInfo);
+    // Pass the enhanced user object and response to the login method
+    return this.authService.login(userWithAdditionalInfo, response);
   }
 
   @UseGuards(AuthGuard("jwt"))
@@ -90,9 +95,31 @@ export class AuthController {
     return req.user;
   }
 
+  @Public()
+  @Post("refresh")
+  async refreshTokens(
+    @Req() request: ExpressRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const refreshToken = request.cookies?.refresh_token as string;
+    if (!refreshToken) {
+      throw new UnauthorizedException("Refresh token not found");
+    }
+    return this.authService.refreshTokens(refreshToken, response);
+  }
+
   @Post("logout")
   @HttpCode(HttpStatus.OK)
-  logout() {
+  async logout(
+    @Request() req: RequestWithUser,
+    @Req() request: ExpressRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    // For the cookies error
+    const refreshToken = request.cookies?.refresh_token as string;
+    if (refreshToken) {
+      await this.authService.logout(req.user.userId, refreshToken, response);
+    }
     return { message: "Logged out successfully" };
   }
 

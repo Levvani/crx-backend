@@ -282,4 +282,28 @@ export class UsersService {
       limit,
     };
   }
+
+  async addRefreshToken(userId: string, refreshToken: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $push: { refreshTokens: refreshToken } },
+    );
+  }
+
+  async removeRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $pull: { refreshTokens: refreshToken } },
+    );
+  }
+
+  async removeAllRefreshTokens(userId: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $set: { refreshTokens: [] } },
+    );
+  }
 }
