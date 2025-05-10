@@ -5,6 +5,7 @@ import { Car, CarDocument } from "./schemas/car.schema";
 import { CreateCarDto } from "./dto/create-car.dto";
 // Import the UpdateCarDto
 import { UpdateCarDto } from "./dto/update-car.dto";
+import { UsersService } from "../users/users.service";
 
 interface CarFilters {
   vinCode?: string;
@@ -21,12 +22,27 @@ interface PaginationOptions {
 
 @Injectable()
 export class CarsService {
-  constructor(@InjectModel(Car.name) private carModel: Model<CarDocument>) {}
+  constructor(
+    @InjectModel(Car.name) private carModel: Model<CarDocument>,
+    private usersService: UsersService,
+  ) {}
 
   async create(
     createCarDto: CreateCarDto,
     photos?: Express.Multer.File[],
   ): Promise<CarDocument> {
+    // Check if username exists
+    try {
+      await this.usersService.findByUsername(createCarDto.username);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(
+          `User ${createCarDto.username} does not exist`,
+        );
+      }
+      throw error;
+    }
+
     // Find the highest carID in the database
     const highestCar = await this.carModel.findOne().sort({ carID: -1 }).exec();
     const nextCarID = highestCar ? highestCar.carID + 1 : 1;
