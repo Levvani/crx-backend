@@ -47,7 +47,7 @@ export class User {
   profitBalance: number;
 
   @Prop({ required: false })
-  phoneNumber: number;
+  phoneNumber: string;
 
   @Prop({ default: Date.now })
   createdAt: Date;

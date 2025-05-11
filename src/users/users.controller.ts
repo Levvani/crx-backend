@@ -17,6 +17,7 @@ import { Model } from "mongoose";
 import { User, UserDocument, UserRole } from "./schemas/user.schema";
 import { NotFoundException } from "@nestjs/common";
 import { PaginationDto } from "./dto/pagination.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
 
 @Controller("users")
 @UseGuards(AuthGuard("jwt"), RolesGuard)
@@ -124,10 +125,14 @@ export class UsersController {
     }
   }
 
-  @Put(":id/role")
+  @Put(":id")
   @Roles(UserRole.ADMIN)
-  async updateRole(@Param("id") id: string, @Body() body: { role: UserRole }) {
-    const user = await this.usersService.updateRole(id, body.role);
+  async updateUser(
+    @Param("id") id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    const user = await this.usersService.update(id, updateUserDto);
+    // Remove password from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user.toObject() as User;
     return result;

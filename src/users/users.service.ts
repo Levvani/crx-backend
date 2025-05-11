@@ -10,6 +10,7 @@ import { Model } from "mongoose";
 import * as bcrypt from "bcrypt";
 import { User, UserDocument, UserRole } from "./schemas/user.schema";
 import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user.dto";
 
 interface PaginationOptions {
   page: number;
@@ -305,5 +306,70 @@ export class UsersService {
       { _id: userId },
       { $set: { refreshTokens: [] } },
     );
+  }
+
+  // Remove the updateRole method entirely
+
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserDocument> {
+    const numericId = parseInt(id, 10);
+
+    if (isNaN(numericId)) {
+      throw new BadRequestException(`Invalid userID format: ${id}`);
+    }
+
+    // Check if user exists
+    const existingUser = await this.userModel
+      .findOne({ userID: numericId })
+      .exec();
+    if (!existingUser) {
+      throw new NotFoundException(`User with userID ${numericId} not found`);
+    }
+
+    // Create update object
+    const updateData: Partial<User> = { ...updateUserDto };
+
+    // If password is provided, hash it
+    if (updateData.password) {
+      const salt = await bcrypt.genSalt();
+      updateData.password = await bcrypt.hash(updateData.password, salt);
+    }
+
+    // Ensure username and role cannot be updated
+    if ("username" in updateData) {
+      delete updateData.username;
+    }
+
+    if ("role" in updateData) {
+      delete updateData.role;
+    }
+
+    // Check if email is being updated and ensure it's unique
+    if (updateData.email) {
+      const query = {
+        userID: { $ne: numericId },
+        email: updateData.email,
+      };
+
+      const duplicateUser = await this.userModel.findOne(query).exec();
+      if (duplicateUser) {
+        throw new ConflictException(
+          `Email '${updateData.email}' is already in use`,
+        );
+      }
+    }
+
+    // Update the user
+    const updatedUser = await this.userModel
+      .findOneAndUpdate(
+        { userID: numericId },
+        { $set: updateData },
+        { new: true },
+      )
+      .exec();
+
+    return updatedUser;
   }
 }

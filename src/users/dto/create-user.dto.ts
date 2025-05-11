@@ -52,6 +52,6 @@ export class CreateUserDto {
   profitBalance?: number;
 
   @IsOptional()
-  @IsNumber()
-  phoneNumber?: number;
+  @IsString()
+  phoneNumber?: string;
 }

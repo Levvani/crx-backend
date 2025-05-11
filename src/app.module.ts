@@ -8,6 +8,7 @@ import { CarsModule } from "./cars/cars.module";
 import { PasswordResetModule } from "./password-reset/password-reset.module";
 import { FileUploadModule } from "./file-upload/file-upload.module";
 import { CopartModule } from "./copart/copart.module";
+import { SmsModule } from './sms/sms.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CopartModule } from "./copart/copart.module";
     PasswordResetModule,
     FileUploadModule,
     CopartModule,
+    SmsModule,
   ],
 })
 export class AppModule {}
