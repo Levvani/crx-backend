@@ -12,6 +12,8 @@ import {
   ValidationPipe,
   Param,
   ParseIntPipe,
+  Request,
+  ForbiddenException,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { CarsService } from "./cars.service";
@@ -53,8 +55,9 @@ export class CarsController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
   async findAll(
+    @Request() req,
     @Query(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false }))
     paginationDto: PaginationDto,
     @Query("vinCode") vinCode?: string,
@@ -69,6 +72,11 @@ export class CarsController {
     page: number;
     limit: number;
   }> {
+    // For dealers, force username filter to be their own username
+    if (req.user.role === UserRole.DEALER) {
+      username = req.user.username;
+    }
+
     const result = await this.carsService.findAll(
       {
         vinCode,
@@ -112,9 +120,22 @@ export class CarsController {
 
   @Get(":carID")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  async findOne(@Param("carID", ParseIntPipe) carID: number): Promise<any> {
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
+  async findOne(
+    @Param("carID", ParseIntPipe) carID: number,
+    @Request() req,
+  ): Promise<any> {
     const car = await this.carsService.findOne(carID);
+
+    // For dealers, check if the car belongs to them
+    if (
+      req.user.role === UserRole.DEALER &&
+      car.username !== req.user.username
+    ) {
+      throw new ForbiddenException(
+        "You do not have permission to view this car",
+      );
+    }
     // Return all fields from CreateCarDto plus the requested additional fields
     return {
       // All fields from CreateCarDto

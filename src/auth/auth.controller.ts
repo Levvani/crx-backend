@@ -21,6 +21,9 @@ import { ChangePasswordDto } from "./dto/change-password.dto";
 import { Request as ExpressRequest, Response } from "express";
 import { UserRole } from "../users/schemas/user.schema";
 import { User } from "../users/schemas/user.schema";
+import { RolesGuard } from "./guards/roles.guard";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { Roles } from "./decorators/roles.decorator";
 
 // Define the JWT payload type returned by the JWT strategy
 interface JwtUser {
@@ -46,6 +49,8 @@ export class AuthController {
   ) {}
 
   @Post("register")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   async register(@Body() createUserDto: CreateUserDto) {
     try {
       console.log("Registration request received:", {
