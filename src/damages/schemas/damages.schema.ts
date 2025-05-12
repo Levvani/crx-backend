@@ -1,6 +1,12 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document } from "mongoose";
 
+export enum DamageStatus {
+  PENDING = "pending",
+  REJECTED = "rejected",
+  APPROVED = "approved",
+}
+
 export type DamageDocument = Damage & Document;
 
 @Schema()
@@ -20,8 +26,11 @@ export class Damage {
   @Prop({ required: true })
   amount: number;
 
-  @Prop({ default: false })
-  isApproved: boolean;
+  @Prop({ default: DamageStatus.PENDING })
+  status: string;
+
+  @Prop()
+  approverComment: string;
 
   @Prop({ default: Date.now })
   createdAt: Date;

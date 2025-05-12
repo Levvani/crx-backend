@@ -29,7 +29,9 @@ export class DamagesService {
         username = car.username;
       } catch (error) {
         if (error instanceof NotFoundException) {
-          throw new BadRequestException(`Car with ID ${createDamageDto.carID} not found`);
+          throw new BadRequestException(
+            `Car with ID ${createDamageDto.carID} not found`,
+          );
         }
         throw error;
       }
@@ -80,6 +82,7 @@ export class DamagesService {
     updateDamageDto: UpdateDamageDto,
   ): Promise<DamageDocument> {
     // Find the damage by ID
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const damage = await this.findOne(damageID);
 
     // Update the damage properties

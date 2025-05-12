@@ -1,6 +1,12 @@
-import { IsBoolean } from "class-validator";
+import { IsEnum, IsOptional, IsString } from "class-validator";
+import { DamageStatus } from "../schemas/damages.schema";
 
 export class UpdateDamageDto {
-  @IsBoolean()
-  isApproved: boolean;
+  @IsEnum(DamageStatus)
+  @IsOptional()
+  status?: DamageStatus;
+
+  @IsString()
+  @IsOptional()
+  approverComment?: string;
 }
