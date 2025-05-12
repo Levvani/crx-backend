@@ -16,10 +16,16 @@ import { AuthController } from "./auth.controller";
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>("JWT_SECRET"),
-        signOptions: { expiresIn: "1h" },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const expirationMs = configService.get<number>("JWT_EXPIRATION");
+        // Convert milliseconds to seconds for JWT library
+        const expirationSec = Math.floor(expirationMs / 1000);
+
+        return {
+          secret: configService.get<string>("JWT_SECRET"),
+          signOptions: { expiresIn: expirationSec },
+        };
+      },
       inject: [ConfigService],
     }),
   ],
