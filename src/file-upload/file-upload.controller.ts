@@ -7,14 +7,14 @@ import {
   BadRequestException,
   HttpCode,
   HttpStatus,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 
-import { extname } from 'path';
-import { FileUploadService, FileEntryDto } from './file-upload.service';
-import { FileEntry } from './schemas/file-entry.schema';
+import { extname } from "path";
+import { FileUploadService, FileEntryDto } from "./file-upload.service";
+import { FileEntry } from "./schemas/file-entry.schema";
 
-@Controller('file-upload')
+@Controller("file-upload")
 export class FileUploadController {
   constructor(private readonly fileUploadService: FileUploadService) {}
 
@@ -28,10 +28,10 @@ export class FileUploadController {
   @Post()
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       storage: undefined, // Explicitly set to undefined to keep file in memory as buffer
       fileFilter: (req, file, cb) => {
-        const allowedExtensions = ['.xlsx', '.csv', '.numbers'];
+        const allowedExtensions = [".xlsx", ".csv", ".numbers"];
         const fileExt = extname(file.originalname).toLowerCase();
 
         if (allowedExtensions.includes(fileExt)) {
@@ -39,7 +39,7 @@ export class FileUploadController {
         } else {
           cb(
             new BadRequestException(
-              `Unsupported file type ${fileExt}. Allowed types: ${allowedExtensions.join(', ')}`,
+              `Unsupported file type ${fileExt}. Allowed types: ${allowedExtensions.join(", ")}`,
             ),
             false,
           );
@@ -54,7 +54,7 @@ export class FileUploadController {
     @UploadedFile() file: Express.Multer.File,
   ): Promise<{ data: FileEntryDto[] }> {
     if (!file) {
-      throw new BadRequestException('File is required');
+      throw new BadRequestException("File is required");
     }
 
     let data: FileEntry[] = [];
@@ -62,17 +62,17 @@ export class FileUploadController {
 
     try {
       switch (fileExt) {
-        case '.xlsx':
+        case ".xlsx":
           data = (await this.fileUploadService.parseExcelFile(
             file,
           )) as FileEntry[];
           break;
-        case '.csv':
+        case ".csv":
           data = (await this.fileUploadService.parseCsvFile(
             file,
           )) as FileEntry[];
           break;
-        case '.numbers':
+        case ".numbers":
           data = (await this.fileUploadService.parseNumbersFile(
             file,
           )) as FileEntry[];

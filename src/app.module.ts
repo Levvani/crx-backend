@@ -9,6 +9,7 @@ import { PasswordResetModule } from "./password-reset/password-reset.module";
 import { FileUploadModule } from "./file-upload/file-upload.module";
 import { CopartModule } from "./copart/copart.module";
 import { SmsModule } from "./sms/sms.module";
+import { DamagesModule } from "./damages/damages.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { SmsModule } from "./sms/sms.module";
     FileUploadModule,
     CopartModule,
     SmsModule,
+    DamagesModule,
   ],
 })
 export class AppModule {}
