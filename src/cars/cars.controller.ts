@@ -72,6 +72,8 @@ export class CarsController {
     page: number;
     limit: number;
   }> {
+    console.log("BBBBBBBBBBB", req.user);
+
     // For dealers, force username filter to be their own username
     if (req.user.role === UserRole.DEALER) {
       username = req.user.username;
