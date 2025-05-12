@@ -9,7 +9,7 @@ export class CreateDamageDto {
   @IsString()
   comment: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   username: string;
 
