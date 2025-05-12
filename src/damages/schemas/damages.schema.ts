@@ -23,9 +23,6 @@ export class Damage {
   @Prop({ default: false })
   isApproved: boolean;
 
-  @Prop({ default: false })
-  isRejected: boolean;
-
   @Prop({ default: Date.now })
   createdAt: Date;
 
