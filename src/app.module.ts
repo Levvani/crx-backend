@@ -10,6 +10,7 @@ import { FileUploadModule } from "./file-upload/file-upload.module";
 import { CopartModule } from "./copart/copart.module";
 import { SmsModule } from "./sms/sms.module";
 import { DamagesModule } from "./damages/damages.module";
+import { InvoiceModule } from "./invoice/invoice.module";
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { DamagesModule } from "./damages/damages.module";
     CopartModule,
     SmsModule,
     DamagesModule,
+    InvoiceModule,
   ],
 })
 export class AppModule {}
