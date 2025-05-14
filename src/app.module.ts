@@ -11,6 +11,7 @@ import { CopartModule } from "./copart/copart.module";
 import { SmsModule } from "./sms/sms.module";
 import { DamagesModule } from "./damages/damages.module";
 import { InvoiceModule } from "./invoice/invoice.module";
+import { IaaIModule } from "./IAAI/iaai.module";
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { InvoiceModule } from "./invoice/invoice.module";
     SmsModule,
     DamagesModule,
     InvoiceModule,
+    IaaIModule,
   ],
 })
 export class AppModule {}
