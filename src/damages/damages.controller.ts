@@ -9,7 +9,10 @@ import {
   ParseIntPipe,
   Request,
   ForbiddenException,
+  UploadedFile,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { DamagesService } from "./damages.service";
 import { CreateDamageDto } from "./dto/create-damage.dto";
 import { UpdateDamageDto } from "./dto/update-damage.dto";
@@ -26,8 +29,12 @@ export class DamagesController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
-  async create(@Body() createDamageDto: CreateDamageDto): Promise<Damage> {
-    return this.damagesService.create(createDamageDto);
+  @UseInterceptors(FileInterceptor("image"))
+  async create(
+    @Body() createDamageDto: CreateDamageDto,
+    @UploadedFile() file?: Express.Multer.File
+  ): Promise<Damage> {
+    return this.damagesService.create(createDamageDto, file);
   }
 
   @Get()
@@ -47,7 +54,7 @@ export class DamagesController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
   async findOne(
     @Param("damageID", ParseIntPipe) damageID: number,
-    @Request() req,
+    @Request() req
   ): Promise<Damage> {
     const damage = await this.damagesService.findOne(damageID);
 
@@ -57,7 +64,7 @@ export class DamagesController {
       damage.username !== req.user.username
     ) {
       throw new ForbiddenException(
-        "You do not have permission to view this damage",
+        "You do not have permission to view this damage"
       );
     }
 
@@ -67,10 +74,12 @@ export class DamagesController {
   @Put(":damageID")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @UseInterceptors(FileInterceptor("image"))
   async update(
     @Param("damageID", ParseIntPipe) damageID: number,
     @Body() updateDamageDto: UpdateDamageDto,
+    @UploadedFile() file?: Express.Multer.File
   ): Promise<Damage> {
-    return this.damagesService.update(damageID, updateDamageDto);
+    return this.damagesService.update(damageID, updateDamageDto, file);
   }
 }

@@ -10,6 +10,7 @@ import { CreateDamageDto } from "./dto/create-damage.dto";
 import { UpdateDamageDto } from "./dto/update-damage.dto";
 import { UsersService } from "../users/users.service";
 import { CarsService } from "../cars/cars.service";
+import { StorageService } from "../config/storage.service";
 
 @Injectable()
 export class DamagesService {
@@ -17,9 +18,13 @@ export class DamagesService {
     @InjectModel(Damage.name) private damageModel: Model<DamageDocument>,
     private usersService: UsersService,
     private carsService: CarsService,
+    private storageService: StorageService
   ) {}
 
-  async create(createDamageDto: CreateDamageDto): Promise<DamageDocument> {
+  async create(
+    createDamageDto: CreateDamageDto,
+    file?: Express.Multer.File
+  ): Promise<DamageDocument> {
     let username = createDamageDto.username;
 
     // If carID is provided, get the username from the car object
@@ -30,7 +35,7 @@ export class DamagesService {
       } catch (error) {
         if (error instanceof NotFoundException) {
           throw new BadRequestException(
-            `Car with ID ${createDamageDto.carID} not found`,
+            `Car with ID ${createDamageDto.carID} not found`
           );
         }
         throw error;
@@ -54,11 +59,26 @@ export class DamagesService {
       .exec();
     const nextDamageID = highestDamage ? highestDamage.damageID + 1 : 1;
 
+    // Upload file to GCS if provided
+    let imageUrl = null;
+    if (file) {
+      try {
+        imageUrl = await this.storageService.uploadFile(file);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        throw new BadRequestException(
+          `Failed to upload image: ${errorMessage}`
+        );
+      }
+    }
+
     // Create a new damage with the next damageID and the determined username
     const newDamage = new this.damageModel({
       ...createDamageDto,
       username, // Use the username from car or the one provided in DTO
       damageID: nextDamageID,
+      imageUrl, // Add the image URL from GCS
     });
     return newDamage.save();
   }
@@ -80,14 +100,30 @@ export class DamagesService {
   async update(
     damageID: number,
     updateDamageDto: UpdateDamageDto,
+    file?: Express.Multer.File
   ): Promise<DamageDocument> {
     // Find the damage by ID
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const damage = await this.findOne(damageID);
 
+    // Update image if file is provided
+    let imageUrl = updateDamageDto.imageUrl;
+    if (file) {
+      try {
+        imageUrl = await this.storageService.uploadFile(file);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        throw new BadRequestException(
+          `Failed to upload image: ${errorMessage}`
+        );
+      }
+    }
+
     // Update the damage properties
     const updateData = {
       ...updateDamageDto,
+      imageUrl,
       updatedAt: new Date(),
     };
 
@@ -96,7 +132,7 @@ export class DamagesService {
       .findOneAndUpdate(
         { damageID },
         { $set: updateData },
-        { new: true }, // Return the updated document
+        { new: true } // Return the updated document
       )
       .exec();
   }

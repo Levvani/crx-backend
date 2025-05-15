@@ -24,7 +24,7 @@ export class InvoiceService {
     // Path to the invoice template
     this.templatePath = path.join(
       process.cwd(),
-      "src/assets/ტრანსპორტირების ინვოისი.docx",
+      "src/assets/ტრანსპორტირების ინვოისი.docx"
     );
     // Path to save generated invoices
     this.uploadsPath = path.join(process.cwd(), "uploads/invoices");
@@ -41,7 +41,7 @@ export class InvoiceService {
     const counter = await this.counterModel.findOneAndUpdate(
       { _id: "invoiceId" },
       { $inc: { seq: 1 } },
-      { new: true, upsert: true },
+      { new: true, upsert: true }
     );
     return counter.seq;
   }
@@ -52,7 +52,7 @@ export class InvoiceService {
    * @returns Object containing the file path and buffer
    */
   async generateInvoice(
-    car: Car,
+    car: Car
   ): Promise<{ filePath: string; buffer: Buffer }> {
     try {
       const invoiceNumber = await this.getNextInvoiceNumber();
@@ -65,9 +65,7 @@ export class InvoiceService {
       };
       const doc = new Docxtemplater(zip);
       doc.render(templateData);
-      const docxBuffer = doc
-        .getZip()
-        .generate({ type: "nodebuffer" }) as Buffer;
+      const docxBuffer = doc.getZip().generate({ type: "nodebuffer" });
       const docxFilename = `invoice_${invoiceNumber}_${car.vinCode}.docx`;
       const docxFilePath = path.join(this.uploadsPath, docxFilename);
       fs.writeFileSync(docxFilePath, docxBuffer);
@@ -80,7 +78,9 @@ export class InvoiceService {
       return { filePath: pdfFilePath, buffer: pdfBuffer };
     } catch (error) {
       console.error("Error generating invoice:", error);
-      throw new Error(`Failed to generate invoice: ${error.message}`);
+      throw new Error(
+        `Failed to generate invoice: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }

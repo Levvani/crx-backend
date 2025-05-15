@@ -26,6 +26,9 @@ export class Damage {
   @Prop({ required: true })
   amount: number;
 
+  @Prop()
+  imageUrl: string;
+
   @Prop({ default: DamageStatus.PENDING })
   status: string;
 

@@ -12,6 +12,7 @@ import { SmsModule } from "./sms/sms.module";
 import { DamagesModule } from "./damages/damages.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { IaaIModule } from "./IAAI/iaai.module";
+import { StorageModule } from "./config/storage.module";
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { IaaIModule } from "./IAAI/iaai.module";
     DamagesModule,
     InvoiceModule,
     IaaIModule,
+    StorageModule,
   ],
 })
 export class AppModule {}

@@ -7,7 +7,7 @@ import { CarsService } from "../cars/cars.service";
 export class InvoiceController {
   constructor(
     private readonly invoiceService: InvoiceService,
-    private readonly carsService: CarsService,
+    private readonly carsService: CarsService
   ) {}
 
   /**
@@ -17,27 +17,28 @@ export class InvoiceController {
    */
   @Get("generate/:carId")
   async generateInvoice(@Param("carId") carId: number, @Res() res: Response) {
-    try {
-      // Find the car by ID
-      const car = await this.carsService.findOne(carId);
-      if (!car) {
-        throw new NotFoundException(`Car with ID ${carId} not found`);
-      }
-
-      // Generate the invoice
-      const pdfBuffer = await this.invoiceService.generateInvoice(car);
-
-      // Set response headers for PDF download
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename=invoice-${carId}.pdf`,
-      );
-
-      // Send the PDF buffer
-      return res.send(pdfBuffer);
-    } catch (error) {
-      throw error;
+    // Find the car by ID
+    const car = await this.carsService.findOne(carId);
+    if (!car) {
+      throw new NotFoundException(`Car with ID ${carId} not found`);
     }
+
+    // Generate the invoice
+    const { buffer: pdfBuffer } =
+      await this.invoiceService.generateInvoice(car);
+
+    // Set response headers for PDF download
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=invoice-${carId}.pdf`
+    );
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+
+    // Send the PDF buffer
+    return res.end(pdfBuffer);
   }
 }

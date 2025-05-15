@@ -1,8 +1,10 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
+import { Type } from "class-transformer";
 
 export class CreateDamageDto {
   @IsNotEmpty()
   @IsNumber()
+  @Type(() => Number)
   carID: number;
 
   @IsOptional()
@@ -15,5 +17,10 @@ export class CreateDamageDto {
 
   @IsNotEmpty()
   @IsNumber()
+  @Type(() => Number)
   amount: number;
+
+  @IsOptional()
+  @IsString()
+  imageUrl: string;
 }
