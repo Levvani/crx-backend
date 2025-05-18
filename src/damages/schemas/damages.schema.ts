@@ -20,6 +20,9 @@ export class Damage {
   @Prop({ required: true })
   username: string;
 
+  @Prop()
+  vinCode: string;
+
   @Prop({ required: true })
   comment: string;
 

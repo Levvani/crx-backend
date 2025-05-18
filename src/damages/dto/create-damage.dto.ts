@@ -15,6 +15,10 @@ export class CreateDamageDto {
   @IsString()
   username: string;
 
+  @IsOptional()
+  @IsString()
+  vinCode: string;
+
   @IsNotEmpty()
   @IsNumber()
   @Type(() => Number)

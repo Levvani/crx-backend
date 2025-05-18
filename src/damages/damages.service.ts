@@ -26,12 +26,15 @@ export class DamagesService {
     file?: Express.Multer.File
   ): Promise<DamageDocument> {
     let username = createDamageDto.username;
+    let vinCode = createDamageDto.vinCode;
 
     // If carID is provided, get the username from the car object
     if (createDamageDto.carID) {
       try {
         const car = await this.carsService.findOne(createDamageDto.carID);
         username = car.username;
+        // Get the vinCode from the car
+        vinCode = car.vinCode;
       } catch (error) {
         if (error instanceof NotFoundException) {
           throw new BadRequestException(
@@ -77,6 +80,7 @@ export class DamagesService {
     const newDamage = new this.damageModel({
       ...createDamageDto,
       username, // Use the username from car or the one provided in DTO
+      vinCode, // Include the vinCode from car or the one provided in DTO
       damageID: nextDamageID,
       imageUrl, // Add the image URL from GCS
     });
@@ -86,7 +90,41 @@ export class DamagesService {
   async findAll(username?: string): Promise<DamageDocument[]> {
     // If username is provided, filter by username (for dealers)
     const query = username ? { username } : {};
-    return this.damageModel.find(query).sort({ createdAt: -1 }).exec();
+    const damages = await this.damageModel
+      .find(query)
+      .sort({ createdAt: -1 })
+      .exec();
+
+    // Enhance damages with vinCode from cars (if missing)
+    const enhancedDamages = await Promise.all(
+      damages.map(async (damage) => {
+        // If damage already has vinCode, return as is
+        if (damage.vinCode) {
+          return damage;
+        }
+
+        try {
+          // Get car information to retrieve vinCode
+          const car = await this.carsService.findOne(damage.carID);
+
+          // Set the vinCode
+          damage.vinCode = car.vinCode;
+
+          // Save the updated damage with vinCode
+          await damage.save();
+        } catch (error) {
+          // If car not found or other error, continue without vinCode
+          console.error(
+            `Could not retrieve vinCode for damage ${damage.damageID}:`,
+            error.message
+          );
+        }
+
+        return damage;
+      })
+    );
+
+    return enhancedDamages;
   }
 
   async findOne(damageID: number): Promise<DamageDocument> {
@@ -94,6 +132,22 @@ export class DamagesService {
     if (!damage) {
       throw new NotFoundException(`Damage with ID ${damageID} not found`);
     }
+
+    // If damage doesn't have vinCode, get it from car
+    if (!damage.vinCode) {
+      try {
+        const car = await this.carsService.findOne(damage.carID);
+        damage.vinCode = car.vinCode;
+        await damage.save();
+      } catch (error) {
+        // If car not found or other error, continue without vinCode
+        console.error(
+          `Could not retrieve vinCode for damage ${damageID}:`,
+          error
+        );
+      }
+    }
+
     return damage;
   }
 
