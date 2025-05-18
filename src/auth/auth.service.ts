@@ -14,7 +14,7 @@ import { Response } from "express";
 
 // Define the interface for the user object as received from the JWT strategy
 interface JwtUser {
-  userId: string;
+  userID: number;
   username: string;
   role: UserRole;
   email?: string;
@@ -31,12 +31,12 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-    private configService: ConfigService,
+    private configService: ConfigService
   ) {}
 
   async validateUser(
     username: string,
-    password: string,
+    password: string
   ): Promise<Partial<User> | null> {
     try {
       const user = await this.usersService.findByUsername(username);
@@ -59,7 +59,7 @@ export class AuthService {
   async login(user: JwtUser, response: Response) {
     const payload: JwtPayload = {
       username: user.username,
-      sub: user.userId || user._id,
+      sub: user.userID,
       role: user.role,
     };
 
@@ -68,10 +68,7 @@ export class AuthService {
     const refreshToken = this.generateRefreshToken(payload);
 
     // Save refresh token to user document
-    await this.usersService.addRefreshToken(
-      user.userId || user._id.toString(),
-      refreshToken,
-    );
+    await this.usersService.addRefreshToken(user.userID, refreshToken);
 
     // Set refresh token as HTTP-only cookie
     this.setRefreshTokenCookie(response, refreshToken);
@@ -79,7 +76,7 @@ export class AuthService {
     return {
       access_token: accessToken,
       user: {
-        id: user.userId || user._id,
+        id: user.userID,
         username: user.username,
         email: user.email,
         role: user.role,
@@ -143,7 +140,7 @@ export class AuthService {
   }
 
   // Update the logout method to clear the cookie
-  async logout(userId: string, refreshToken: string, response: Response) {
+  async logout(userId: number, refreshToken: string, response: Response) {
     // Remove the refresh token from the user's document
     await this.usersService.removeRefreshToken(userId, refreshToken);
 
@@ -168,17 +165,17 @@ export class AuthService {
   }
 
   async changePassword(
-    userId: string,
+    userID: number,
     currentPassword: string,
-    newPassword: string,
+    newPassword: string
   ): Promise<void> {
     // Find the user
-    const user = await this.usersService.findById(userId);
+    const user = await this.usersService.findById(userID);
 
     // Verify current password
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
-      user.password,
+      user.password
     );
     if (!isPasswordValid) {
       throw new BadRequestException("Current password is incorrect");
@@ -189,6 +186,6 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
     // Update the password
-    await this.usersService.updatePassword(userId, hashedPassword);
+    await this.usersService.updatePassword(userID, hashedPassword);
   }
 }

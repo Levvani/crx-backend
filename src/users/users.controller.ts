@@ -24,7 +24,7 @@ import { UpdateUserDto } from "./dto/update-user.dto";
 export class UsersController {
   constructor(
     private usersService: UsersService,
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>
   ) {}
 
   @Get()
@@ -96,29 +96,17 @@ export class UsersController {
 
   @Get(":id") // This parameterized route MUST come after specific routes
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.ACCOUNTANT)
-  async findOne(@Param("id") id: string) {
+  async findOne(@Param("id") id: number) {
     try {
-      // Try to parse as numeric ID first
-      const numericId = parseInt(id, 10);
+      const user = await this.userModel.findById(id).exec();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...result } = user.toObject() as User;
 
-      // If it's a valid number, use findById which now uses userID
-      if (!isNaN(numericId)) {
-        const user = await this.usersService.findById(id);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password, ...result } = user.toObject() as User;
-        return result;
+      if (!user) {
+        throw new NotFoundException(`User with MongoDB id ${id} not found`);
       }
-      // If it's not a valid number, it might be a MongoDB ObjectId
-      else {
-        // Use Mongoose's findById directly for MongoDB _id
-        const user = await this.userModel.findById(id).exec();
-        if (!user) {
-          throw new NotFoundException(`User with MongoDB id ${id} not found`);
-        }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password, ...result } = user.toObject() as User;
-        return result;
-      }
+
+      return result;
     } catch (error) {
       console.error(`Error finding user with id ${id}:`, error);
       throw error;
@@ -128,8 +116,8 @@ export class UsersController {
   @Put(":id")
   @Roles(UserRole.ADMIN)
   async updateUser(
-    @Param("id") id: string,
-    @Body() updateUserDto: UpdateUserDto,
+    @Param("id") id: number,
+    @Body() updateUserDto: UpdateUserDto
   ) {
     const user = await this.usersService.update(id, updateUserDto);
     // Remove password from response

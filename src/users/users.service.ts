@@ -104,27 +104,18 @@ export class UsersService {
     return user;
   }
 
-  async findById(id: string): Promise<UserDocument> {
-    // Convert string id to number for userID lookup
-    const numericId = parseInt(id, 10);
-
-    // Check if conversion was successful
-    if (isNaN(numericId)) {
-      throw new BadRequestException(`Invalid userID format: ${id}`);
-    }
-
-    // Find by userID instead of MongoDB _id
-    const user = await this.userModel.findOne({ userID: numericId }).exec();
+  async findById(id: number): Promise<UserDocument> {
+    const user = await this.userModel.findOne({ userID: id }).exec();
 
     if (!user) {
-      throw new NotFoundException(`User with userID ${numericId} not found`);
+      throw new NotFoundException(`User with userID ${id} not found`);
     }
 
     return user;
   }
 
   async findAll(
-    paginationOptions: PaginationOptions = { page: 1, limit: 25 },
+    paginationOptions: PaginationOptions = { page: 1, limit: 25 }
   ): Promise<{
     users: UserDocument[];
     total: number;
@@ -183,44 +174,40 @@ export class UsersService {
     };
   }
 
-  async updateRole(id: string, role: UserRole): Promise<UserDocument> {
-    const numericId = parseInt(id, 10);
-
-    if (isNaN(numericId)) {
+  async updateRole(id: number, role: UserRole): Promise<UserDocument> {
+    if (isNaN(id)) {
       throw new BadRequestException(`Invalid userID format: ${id}`);
     }
 
     const user = await this.userModel
-      .findOneAndUpdate({ userID: numericId }, { role }, { new: true })
+      .findOneAndUpdate({ userID: id }, { role }, { new: true })
       .exec();
 
     if (!user) {
-      throw new NotFoundException(`User with userID ${numericId} not found`);
+      throw new NotFoundException(`User with userID ${id} not found`);
     }
 
     return user;
   }
 
   async updatePassword(
-    id: string,
-    hashedPassword: string,
+    id: number,
+    hashedPassword: string
   ): Promise<UserDocument> {
-    const numericId = parseInt(id, 10);
-
-    if (isNaN(numericId)) {
+    if (isNaN(id)) {
       throw new BadRequestException(`Invalid userID format: ${id}`);
     }
 
     const user = await this.userModel
       .findOneAndUpdate(
-        { userID: numericId },
+        { userID: id },
         { password: hashedPassword },
-        { new: true },
+        { new: true }
       )
       .exec();
 
     if (!user) {
-      throw new NotFoundException(`User with userID ${numericId} not found`);
+      throw new NotFoundException(`User with userID ${id} not found`);
     }
 
     return user;
@@ -235,7 +222,7 @@ export class UsersService {
   }
 
   async findDealers(
-    paginationOptions: PaginationOptions = { page: 1, limit: 25 },
+    paginationOptions: PaginationOptions = { page: 1, limit: 25 }
   ): Promise<{
     users: UserDocument[];
     total: number;
@@ -284,48 +271,46 @@ export class UsersService {
     };
   }
 
-  async addRefreshToken(userId: string, refreshToken: string): Promise<void> {
+  async addRefreshToken(userId: number, refreshToken: string): Promise<void> {
     await this.userModel.updateOne(
-      { _id: userId },
-      { $push: { refreshTokens: refreshToken } },
+      { userID: userId },
+      { $push: { refreshTokens: refreshToken } }
     );
   }
 
   async removeRefreshToken(
-    userId: string,
-    refreshToken: string,
+    userID: number,
+    refreshToken: string
   ): Promise<void> {
     await this.userModel.updateOne(
-      { _id: userId },
-      { $pull: { refreshTokens: refreshToken } },
+      { userID: userID },
+      { $pull: { refreshTokens: refreshToken } }
     );
   }
 
-  async removeAllRefreshTokens(userId: string): Promise<void> {
+  async removeAllRefreshTokens(userID: string): Promise<void> {
     await this.userModel.updateOne(
-      { _id: userId },
-      { $set: { refreshTokens: [] } },
+      { userID: userID },
+      { $set: { refreshTokens: [] } }
     );
   }
 
   // Remove the updateRole method entirely
 
   async update(
-    id: string,
-    updateUserDto: UpdateUserDto,
+    userID: number,
+    updateUserDto: UpdateUserDto
   ): Promise<UserDocument> {
-    const numericId = parseInt(id, 10);
-
-    if (isNaN(numericId)) {
-      throw new BadRequestException(`Invalid userID format: ${id}`);
+    if (isNaN(userID)) {
+      throw new BadRequestException(`Invalid userID format: ${userID}`);
     }
 
     // Check if user exists
     const existingUser = await this.userModel
-      .findOne({ userID: numericId })
+      .findOne({ userID: userID })
       .exec();
     if (!existingUser) {
-      throw new NotFoundException(`User with userID ${numericId} not found`);
+      throw new NotFoundException(`User with userID ${userID} not found`);
     }
 
     // Create update object
@@ -349,25 +334,21 @@ export class UsersService {
     // Check if email is being updated and ensure it's unique
     if (updateData.email) {
       const query = {
-        userID: { $ne: numericId },
+        userID: { $ne: userID },
         email: updateData.email,
       };
 
       const duplicateUser = await this.userModel.findOne(query).exec();
       if (duplicateUser) {
         throw new ConflictException(
-          `Email '${updateData.email}' is already in use`,
+          `Email '${updateData.email}' is already in use`
         );
       }
     }
 
     // Update the user
     const updatedUser = await this.userModel
-      .findOneAndUpdate(
-        { userID: numericId },
-        { $set: updateData },
-        { new: true },
-      )
+      .findOneAndUpdate({ userID: userID }, { $set: updateData }, { new: true })
       .exec();
 
     return updatedUser;

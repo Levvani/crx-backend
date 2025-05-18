@@ -27,7 +27,7 @@ import { Roles } from "./decorators/roles.decorator";
 
 // Define the JWT payload type returned by the JWT strategy
 interface JwtUser {
-  userId: string;
+  userID: number;
   username: string;
   role: UserRole;
   firstname?: string;
@@ -45,7 +45,7 @@ interface RequestWithUser extends ExpressRequest {
 export class AuthController {
   constructor(
     private authService: AuthService,
-    private usersService: UsersService,
+    private usersService: UsersService
   ) {}
 
   @Post("register")
@@ -75,7 +75,7 @@ export class AuthController {
   @Post("login")
   async login(
     @Request() req: RequestWithUser,
-    @Res({ passthrough: true }) response: Response,
+    @Res({ passthrough: true }) response: Response
   ) {
     // Get the complete user data from the database
     const user = await this.usersService.findByUsername(req.user.username);
@@ -83,6 +83,7 @@ export class AuthController {
     // Create a user object with all the required fields
     const userWithAdditionalInfo = {
       ...req.user,
+      userID: user.userID,
       firstname: user.firstname,
       lastname: user.lastname,
       profitBalance: user.profitBalance,
@@ -104,7 +105,7 @@ export class AuthController {
   @Post("refresh")
   async refreshTokens(
     @Req() request: ExpressRequest,
-    @Res({ passthrough: true }) response: Response,
+    @Res({ passthrough: true }) response: Response
   ) {
     const refreshToken = request.cookies?.refresh_token as string;
     if (!refreshToken) {
@@ -118,12 +119,12 @@ export class AuthController {
   async logout(
     @Request() req: RequestWithUser,
     @Req() request: ExpressRequest,
-    @Res({ passthrough: true }) response: Response,
+    @Res({ passthrough: true }) response: Response
   ) {
     // For the cookies error
     const refreshToken = request.cookies?.refresh_token as string;
     if (refreshToken) {
-      await this.authService.logout(req.user.userId, refreshToken, response);
+      await this.authService.logout(req.user.userID, refreshToken, response);
     }
     return { message: "Logged out successfully" };
   }
@@ -132,12 +133,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async changePassword(
     @Request() req: RequestWithUser,
-    @Body() changePasswordDto: ChangePasswordDto,
+    @Body() changePasswordDto: ChangePasswordDto
   ) {
+    console.log("CHANGE PASSWORD - ", req.user);
     await this.authService.changePassword(
-      req.user.userId,
+      req.user.userID,
       changePasswordDto.currentPassword,
-      changePasswordDto.newPassword,
+      changePasswordDto.newPassword
     );
     return { message: "Password changed successfully" };
   }
