@@ -32,6 +32,9 @@ export class Damage {
   @Prop()
   imageUrl: string;
 
+  @Prop({ type: [String], default: [] })
+  imageUrls: string[];
+
   @Prop({ default: DamageStatus.PENDING })
   status: string;
 

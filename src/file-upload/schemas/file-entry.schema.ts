@@ -8,7 +8,7 @@ export class FileEntry {
   @Prop({ required: true })
   title: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   description: string;
 
   @Prop({ default: Date.now })

@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsArray,
+} from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateDamageDto {
@@ -27,4 +33,8 @@ export class CreateDamageDto {
   @IsOptional()
   @IsString()
   imageUrl: string;
+
+  @IsOptional()
+  @IsArray()
+  imageUrls: string[];
 }

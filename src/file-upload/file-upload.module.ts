@@ -4,12 +4,14 @@ import { FileUploadController } from "./file-upload.controller";
 import { FileUploadService } from "./file-upload.service";
 import { FileEntry, FileEntrySchema } from "./schemas/file-entry.schema";
 import { FileEntryRepository } from "./repositories/file-entry.repository";
+import { TitlesModule } from "../titles/titles.module";
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: FileEntry.name, schema: FileEntrySchema },
     ]),
+    TitlesModule,
   ],
   controllers: [FileUploadController],
   providers: [FileUploadService, FileEntryRepository],

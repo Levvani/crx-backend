@@ -23,7 +23,7 @@ export class DamagesService {
 
   async create(
     createDamageDto: CreateDamageDto,
-    file?: Express.Multer.File
+    files?: Express.Multer.File[]
   ): Promise<DamageDocument> {
     let username = createDamageDto.username;
     let vinCode = createDamageDto.vinCode;
@@ -62,16 +62,30 @@ export class DamagesService {
       .exec();
     const nextDamageID = highestDamage ? highestDamage.damageID + 1 : 1;
 
-    // Upload file to GCS if provided
+    // Upload files to GCS if provided
     let imageUrl = null;
-    if (file) {
+    const imageUrls: string[] = [];
+
+    if (files && files.length > 0) {
       try {
-        imageUrl = await this.storageService.uploadFile(file);
+        // Process each file and get URLs
+        const uploadPromises = files.map((file) =>
+          this.storageService.uploadFile(file)
+        );
+        const uploadedUrls = await Promise.all(uploadPromises);
+
+        // Store all URLs
+        imageUrls.push(...uploadedUrls);
+
+        // Keep backward compatibility by setting the first image as imageUrl
+        if (uploadedUrls.length > 0) {
+          imageUrl = uploadedUrls[0];
+        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         throw new BadRequestException(
-          `Failed to upload image: ${errorMessage}`
+          `Failed to upload images: ${errorMessage}`
         );
       }
     }
@@ -82,7 +96,8 @@ export class DamagesService {
       username, // Use the username from car or the one provided in DTO
       vinCode, // Include the vinCode from car or the one provided in DTO
       damageID: nextDamageID,
-      imageUrl, // Add the image URL from GCS
+      imageUrl, // Add the first image URL for backward compatibility
+      imageUrls, // Add all image URLs as an array
     });
     return newDamage.save();
   }
@@ -153,31 +168,15 @@ export class DamagesService {
 
   async update(
     damageID: number,
-    updateDamageDto: UpdateDamageDto,
-    file?: Express.Multer.File
+    updateDamageDto: UpdateDamageDto
   ): Promise<DamageDocument> {
     // Find the damage by ID
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const damage = await this.findOne(damageID);
 
-    // Update image if file is provided
-    let imageUrl = updateDamageDto.imageUrl;
-    if (file) {
-      try {
-        imageUrl = await this.storageService.uploadFile(file);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        throw new BadRequestException(
-          `Failed to upload image: ${errorMessage}`
-        );
-      }
-    }
-
-    // Update the damage properties
+    // Restrict updates to only status and approverComment
     const updateData = {
-      ...updateDamageDto,
-      imageUrl,
+      status: updateDamageDto.status,
+      approverComment: updateDamageDto.approverComment,
       updatedAt: new Date(),
     };
 

@@ -9,8 +9,4 @@ export class UpdateDamageDto {
   @IsString()
   @IsOptional()
   approverComment?: string;
-
-  @IsString()
-  @IsOptional()
-  imageUrl?: string;
 }

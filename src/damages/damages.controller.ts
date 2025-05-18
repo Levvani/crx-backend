@@ -9,10 +9,10 @@ import {
   ParseIntPipe,
   Request,
   ForbiddenException,
-  UploadedFile,
   UseInterceptors,
+  UploadedFiles,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import { DamagesService } from "./damages.service";
 import { CreateDamageDto } from "./dto/create-damage.dto";
 import { UpdateDamageDto } from "./dto/update-damage.dto";
@@ -29,12 +29,12 @@ export class DamagesController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
-  @UseInterceptors(FileInterceptor("image"))
+  @UseInterceptors(FilesInterceptor("image", 10)) // Allow up to 10 images
   async create(
     @Body() createDamageDto: CreateDamageDto,
-    @UploadedFile() file?: Express.Multer.File
+    @UploadedFiles() files?: Express.Multer.File[]
   ): Promise<Damage> {
-    return this.damagesService.create(createDamageDto, file);
+    return this.damagesService.create(createDamageDto, files);
   }
 
   @Get()
@@ -74,12 +74,10 @@ export class DamagesController {
   @Put(":damageID")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  @UseInterceptors(FileInterceptor("image"))
   async update(
     @Param("damageID", ParseIntPipe) damageID: number,
-    @Body() updateDamageDto: UpdateDamageDto,
-    @UploadedFile() file?: Express.Multer.File
+    @Body() updateDamageDto: UpdateDamageDto
   ): Promise<Damage> {
-    return this.damagesService.update(damageID, updateDamageDto, file);
+    return this.damagesService.update(damageID, updateDamageDto);
   }
 }

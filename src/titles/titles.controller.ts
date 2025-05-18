@@ -25,7 +25,9 @@ export class TitlesController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  async create(@Body() createTitleDto: CreateTitleDto): Promise<Title> {
+  async create(
+    @Body() createTitleDto: CreateTitleDto | CreateTitleDto[]
+  ): Promise<Title | Title[]> {
     return this.titlesService.create(createTitleDto);
   }
 
