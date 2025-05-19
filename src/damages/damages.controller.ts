@@ -12,7 +12,7 @@ import {
   UseInterceptors,
   UploadedFiles,
 } from "@nestjs/common";
-import { FilesInterceptor } from "@nestjs/platform-express";
+import { FileFieldsInterceptor } from "@nestjs/platform-express";
 import { DamagesService } from "./damages.service";
 import { CreateDamageDto } from "./dto/create-damage.dto";
 import { UpdateDamageDto } from "./dto/update-damage.dto";
@@ -29,12 +29,12 @@ export class DamagesController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
-  @UseInterceptors(FilesInterceptor("image", 10)) // Allow up to 10 images
+  @UseInterceptors(FileFieldsInterceptor([{ name: "images", maxCount: 10 }]))
   async create(
     @Body() createDamageDto: CreateDamageDto,
-    @UploadedFiles() files?: Express.Multer.File[]
+    @UploadedFiles() files: { images?: Express.Multer.File[] }
   ): Promise<Damage> {
-    return this.damagesService.create(createDamageDto, files);
+    return this.damagesService.create(createDamageDto, files?.images || []);
   }
 
   @Get()
