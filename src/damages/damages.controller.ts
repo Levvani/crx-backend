@@ -34,7 +34,15 @@ export class DamagesController {
     @Body() createDamageDto: CreateDamageDto,
     @UploadedFiles() files: { images?: Express.Multer.File[] }
   ): Promise<Damage> {
-    return this.damagesService.create(createDamageDto, files?.images || []);
+    // Debug logging
+    console.log("Received files:", files);
+    console.log("Files.images:", files?.images);
+
+    // Ensure we have an array of files, even if empty
+    const imageFiles = files?.images || [];
+    console.log("Image files to be processed:", imageFiles);
+
+    return this.damagesService.create(createDamageDto, imageFiles);
   }
 
   @Get()

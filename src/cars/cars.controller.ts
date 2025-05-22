@@ -37,7 +37,7 @@ export class CarsController {
   @UseInterceptors(FilesInterceptor("photos", 10, multerOptions))
   async create(
     @Body() createCarDto: CreateCarDto,
-    @UploadedFiles() photos: Express.Multer.File[],
+    @UploadedFiles() photos: Express.Multer.File[]
   ): Promise<Car> {
     return this.carsService.create(createCarDto, photos);
   }
@@ -48,7 +48,7 @@ export class CarsController {
   @UseInterceptors(FilesInterceptor("photos", 10, multerOptions))
   async update(
     @Param("carID", ParseIntPipe) carID: number,
-    @Body() updateCarDto: UpdateCarDto,
+    @Body() updateCarDto: UpdateCarDto
   ): Promise<Car> {
     return this.carsService.update(carID, updateCarDto as CreateCarDto);
   }
@@ -64,7 +64,7 @@ export class CarsController {
     @Query("containerNumber") containerNumber?: string,
     @Query("username") username?: string,
     @Query("status") status?: string,
-    @Query("dateOfPurchase") dateOfPurchase?: string,
+    @Query("dateOfPurchase") dateOfPurchase?: string
   ): Promise<{
     cars: any[];
     total: number;
@@ -90,13 +90,14 @@ export class CarsController {
       {
         page: paginationDto.page,
         limit: paginationDto.limit,
-      },
+      }
     );
 
     // Transform the cars to include only the requested fields
     const transformedCars = result.cars.map((car) => {
       return {
         carID: car.carID || null,
+        location: car.location || null,
         lotNumber: car.lotNumber || null,
         vinCode: car.vinCode || null,
         username: car.username || null,
@@ -125,7 +126,7 @@ export class CarsController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
   async findOne(
     @Param("carID", ParseIntPipe) carID: number,
-    @Request() req,
+    @Request() req
   ): Promise<any> {
     const car = await this.carsService.findOne(carID);
 
@@ -135,7 +136,7 @@ export class CarsController {
       car.username !== req.user.username
     ) {
       throw new ForbiddenException(
-        "You do not have permission to view this car",
+        "You do not have permission to view this car"
       );
     }
     // Return all fields from CreateCarDto plus the requested additional fields

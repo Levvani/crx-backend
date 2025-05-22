@@ -94,18 +94,16 @@ export class UsersController {
     }
   }
 
-  @Get(":id") // This parameterized route MUST come after specific routes
+  @Get(":id")
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.ACCOUNTANT)
   async findOne(@Param("id") id: number) {
     try {
-      const user = await this.userModel.findById(id).exec();
+      const user = await this.usersService.findById(id);
+      if (!user) {
+        throw new NotFoundException(`User with ID ${id} not found`);
+      }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...result } = user.toObject() as User;
-
-      if (!user) {
-        throw new NotFoundException(`User with MongoDB id ${id} not found`);
-      }
-
       return result;
     } catch (error) {
       console.error(`Error finding user with id ${id}:`, error);

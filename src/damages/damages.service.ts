@@ -82,6 +82,7 @@ export class DamagesService {
           imageUrl = uploadedUrls[0];
         }
       } catch (error) {
+        console.error("Error uploading files:", error);
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         throw new BadRequestException(
@@ -99,6 +100,14 @@ export class DamagesService {
       imageUrl, // Add the first image URL for backward compatibility
       imageUrls, // Add all image URLs as an array
     });
+
+    // Log the values before saving
+    console.log("Creating damage with:", {
+      imageUrl,
+      imageUrls,
+      filesCount: files?.length,
+    });
+
     return newDamage.save();
   }
 

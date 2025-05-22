@@ -14,6 +14,7 @@ import { InvoiceModule } from "./invoice/invoice.module";
 import { IaaIModule } from "./IAAI/iaai.module";
 import { StorageModule } from "./config/storage.module";
 import { TitlesModule } from "./titles/titles.module";
+import { PricesModule } from "./prices/prices.module";
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { TitlesModule } from "./titles/titles.module";
     IaaIModule,
     StorageModule,
     TitlesModule,
+    PricesModule,
   ],
 })
 export class AppModule {}

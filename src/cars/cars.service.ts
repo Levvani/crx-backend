@@ -6,6 +6,8 @@ import { CreateCarDto } from "./dto/create-car.dto";
 import { UpdateCarDto } from "./dto/update-car.dto";
 import { UsersService } from "../users/users.service";
 import { SmsService } from "../sms/sms.service";
+import { PricesService } from "../prices/prices.service";
+import { User } from "../users/schemas/user.schema";
 
 interface CarFilters {
   vinCode?: string;
@@ -26,40 +28,67 @@ export class CarsService {
     @InjectModel(Car.name) private carModel: Model<CarDocument>,
     private usersService: UsersService,
     private smsService: SmsService,
+    private pricesService: PricesService
   ) {}
 
   async create(
     createCarDto: CreateCarDto,
-    photos?: Express.Multer.File[],
+    photos?: Express.Multer.File[]
   ): Promise<CarDocument> {
-    // Check if username exists
+    // Check if username exists and get user info
+    let user: User;
     try {
-      await this.usersService.findByUsername(createCarDto.username);
+      user = await this.usersService.findByUsername(createCarDto.username);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw new NotFoundException(
-          `User ${createCarDto.username} does not exist`,
+          `User ${createCarDto.username} does not exist`
         );
       }
       throw error;
     }
 
+    // Get price information for the location
+    const prices = await this.pricesService.findAll();
+    const priceForLocation = prices.find(
+      (p) => p.location === createCarDto.location
+    );
+
+    if (!priceForLocation) {
+      throw new NotFoundException(
+        `No price found for location: ${createCarDto.location}`
+      );
+    }
+
+    // Calculate transportation price
+    let transportationPrice =
+      priceForLocation.basePrice + priceForLocation.upsellAmount;
+
+    // Add level-specific amount if it exists, otherwise use upsellAmount as default
+    const levelKey = `Level ${user.level}`;
+    if (priceForLocation[levelKey]) {
+      transportationPrice += priceForLocation[levelKey];
+    }
+
     // Find the highest carID in the database
     const highestCar = await this.carModel.findOne().sort({ carID: -1 }).exec();
     const nextCarID = highestCar ? highestCar.carID + 1 : 1;
-    // Create a new car with the next carID
+
+    // Create a new car with the calculated transportation price
     const newCar = new this.carModel({
       ...createCarDto,
       carID: nextCarID,
       status: "Purchased",
+      transportationPrice,
       photos: photos?.map((photo) => `/uploads/cars/${photo.filename}`) || [],
     });
+
     return newCar.save();
   }
 
   async update(
     carID: number,
-    updateCarDto: UpdateCarDto,
+    updateCarDto: UpdateCarDto
   ): Promise<CarDocument> {
     // Find the car by ID
     const car = await this.carModel.findOne({ carID }).exec();
@@ -84,7 +113,7 @@ export class CarsService {
       .findOneAndUpdate(
         { carID },
         { $set: updateData as Partial<CarDocument> },
-        { new: true }, // Return the updated document
+        { new: true } // Return the updated document
       )
       .exec();
 
@@ -93,15 +122,14 @@ export class CarsService {
       try {
         // Get the user to retrieve their phone number
         const user = await this.usersService.findByUsername(
-          updatedCar.username,
+          updatedCar.username
         );
 
         // Only send SMS if user has a phone number
         if (user.phoneNumber) {
           await this.smsService.sendSms(
             user.phoneNumber.toString(),
-            `თქვენი ავტომობილი (${updatedCar.carName}, VIN: ${updatedCar.vinCode}) გამწვანდა, შეგიძლიათ გაიყვანოთ.
-            ფული მოიჯვას`,
+            `თქვენი ავტომობილი (${updatedCar.carName}, VIN: ${updatedCar.vinCode}) გამწვანდა, შეგიძლიათ გაიყვანოთ.`
           );
         }
       } catch (error) {
@@ -116,7 +144,7 @@ export class CarsService {
 
   async findAll(
     filters?: CarFilters,
-    paginationOptions: PaginationOptions = { page: 1, limit: 25 },
+    paginationOptions: PaginationOptions = { page: 1, limit: 25 }
   ): Promise<{
     cars: CarDocument[];
     total: number;

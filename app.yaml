@@ -4,11 +4,11 @@ env: flex
 env_variables:
   MONGODB_URI: "mongodb+srv://levanzhvania96:somePass1!@cluster0.ut1nsxr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
   JWT_SECRET: d536aac9710f7566a94a603568650859bc612520e71d96278c09fb5b05df5e0118aa20fa4cd570217516e352d2377d9aecb9244e81ba3337aa889218c6ad22ed8c9627770caf18a9f70afac384c5a28dfb633120122cf7031773e02491b0bc829133bcbf2aaffe1edefb4310d2ef7918e24153e0f9d9ae5bcebfeef9d78988ce57aca466b8ebf83e9c60c7cb714cd371b32172fd93ce67be39decdfc7a5dd484f000b00561aa60e439e02c5ffd688c70db2cdc5861402f0f0ef9cb04f3bd2ca16098b85888cb401cad8ea05e0a7dbcf504fcb57d7da97558930f31a428e9ee7fd6e51e559b375efbb79494be2658ed43902ad4a63c2cae20f4c1414915bded7f
-  JWT_EXPIRATION: 3600
+  JWT_EXPIRATION: 6000000
   FRONTEND_URL: https://crx-platform.vercel.app
 
 handlers:
-- url: /.*
-  script: auto
+  - url: /.*
+    script: auto
 
 entrypoint: npm install -g playwright && npx playwright install --with-deps chromium && npm run start:prod

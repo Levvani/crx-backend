@@ -57,6 +57,10 @@ export class AuthService {
 
   // In the AuthService class, update the login method
   async login(user: JwtUser, response: Response) {
+    console.log("=== Login Debug ===");
+    console.log("1. Environment:", process.env.NODE_ENV);
+    console.log("2. Frontend URL:", process.env.FRONTEND_URL);
+
     const payload: JwtPayload = {
       username: user.username,
       sub: user.userID,
@@ -72,6 +76,12 @@ export class AuthService {
 
     // Set refresh token as HTTP-only cookie
     this.setRefreshTokenCookie(response, refreshToken);
+
+    console.log("3. Cookie set with options:", {
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/auth/refresh",
+    });
 
     return {
       access_token: accessToken,
@@ -91,13 +101,16 @@ export class AuthService {
 
   // Add this new method to set the refresh token cookie
   private setRefreshTokenCookie(response: Response, token: string) {
-    response.cookie("refresh_token", token, {
+    const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Use secure in production
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-      path: "/auth/refresh", // Only sent to the refresh endpoint
-    });
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict" as const,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/auth/refresh",
+    };
+
+    console.log("Setting cookie with options:", cookieOptions);
+    response.cookie("refresh_token", token, cookieOptions);
   }
 
   // Update the refreshTokens method to use cookies
