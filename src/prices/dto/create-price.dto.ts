@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsNotEmpty } from "class-validator";
+import { IsString, IsNumber, IsNotEmpty, IsOptional } from "class-validator";
 
 export class CreatePriceDto {
   @IsString()
@@ -6,10 +6,10 @@ export class CreatePriceDto {
   location: string;
 
   @IsNumber()
-  @IsNotEmpty()
+  @IsOptional()
   basePrice: number;
 
   @IsNumber()
-  @IsNotEmpty()
+  @IsOptional()
   upsellAmount: number;
 }

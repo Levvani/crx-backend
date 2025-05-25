@@ -5,4 +5,5 @@ export interface JwtPayload {
   sub: number;
   username: string;
   role: UserRole;
+  level: string;
 }

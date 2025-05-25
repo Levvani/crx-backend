@@ -9,10 +9,10 @@ export class Price extends Document {
   @Prop({ required: true, unique: true })
   location: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   basePrice: number;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   upsellAmount: number;
 }
 

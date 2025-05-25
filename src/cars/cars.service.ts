@@ -48,28 +48,26 @@ export class CarsService {
       throw error;
     }
 
+    let transportationPrice = 0;
+
     // Get price information for the location
     const prices = await this.pricesService.findAll();
     const priceForLocation = prices.find(
       (p) => p.location === createCarDto.location
     );
 
-    if (!priceForLocation) {
-      throw new NotFoundException(
-        `No price found for location: ${createCarDto.location}`
-      );
+    if (priceForLocation) {
+      // Calculate transportation price
+      transportationPrice = priceForLocation.upsellAmount;
+
+      // Add level-specific amount if it exists, otherwise use upsellAmount as default
+      const levelKey = user.level;
+      if (priceForLocation[levelKey]) {
+        transportationPrice += priceForLocation[levelKey];
+      }
+    } else {
+      transportationPrice = 0;
     }
-
-    // Calculate transportation price
-    let transportationPrice =
-      priceForLocation.basePrice + priceForLocation.upsellAmount;
-
-    // Add level-specific amount if it exists, otherwise use upsellAmount as default
-    const levelKey = `Level ${user.level}`;
-    if (priceForLocation[levelKey]) {
-      transportationPrice += priceForLocation[levelKey];
-    }
-
     // Find the highest carID in the database
     const highestCar = await this.carModel.findOne().sort({ carID: -1 }).exec();
     const nextCarID = highestCar ? highestCar.carID + 1 : 1;
