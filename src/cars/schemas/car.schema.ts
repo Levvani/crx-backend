@@ -49,10 +49,10 @@ export class Car {
   @Prop({ required: false })
   buyerPhone: string;
 
-  @Prop({ required: false })
+  @Prop({ required: false, default: 0 })
   auctionPrice: number;
 
-  @Prop({ required: false })
+  @Prop({ required: false, default: 0 })
   transportationPrice: number;
 
   @Prop({ required: false })

@@ -31,6 +31,25 @@ export class CarsService {
     private pricesService: PricesService
   ) {}
 
+  private async updateUserTotalBalance(
+    username: string,
+    totalCost: number
+  ): Promise<void> {
+    try {
+      const user = await this.usersService.findByUsername(username);
+      const newTotalBalance = (user.totalBalance || 0) + totalCost;
+      await this.usersService.update(user.userID, {
+        totalBalance: newTotalBalance,
+      });
+    } catch (error) {
+      console.error(
+        `Failed to update total balance for user ${username}:`,
+        error
+      );
+      // Don't throw the error to avoid disrupting the car operation
+    }
+  }
+
   async create(
     createCarDto: CreateCarDto,
     photos?: Express.Multer.File[]
@@ -68,20 +87,32 @@ export class CarsService {
     } else {
       transportationPrice = 0;
     }
+
     // Find the highest carID in the database
     const highestCar = await this.carModel.findOne().sort({ carID: -1 }).exec();
     const nextCarID = highestCar ? highestCar.carID + 1 : 1;
 
-    // Create a new car with the calculated transportation price
+    // Calculate totalCost as sum of transportationPrice and auctionPrice
+    const totalCost = transportationPrice + (createCarDto.auctionPrice || 0);
+
+    // Create a new car with the calculated transportation price and totalCost
     const newCar = new this.carModel({
       ...createCarDto,
       carID: nextCarID,
       status: "Purchased",
       transportationPrice,
+      totalCost,
       photos: photos?.map((photo) => `/uploads/cars/${photo.filename}`) || [],
     });
 
-    return newCar.save();
+    const savedCar = await newCar.save();
+
+    // Update user's total balance if totalCost exists
+    if (savedCar.totalCost) {
+      await this.updateUserTotalBalance(savedCar.username, savedCar.totalCost);
+    }
+
+    return savedCar;
   }
 
   async update(
@@ -102,6 +133,17 @@ export class CarsService {
       delete (updateData as { carID?: number }).carID;
     }
 
+    // Calculate new totalCost if either transportationPrice or auctionPrice is being updated
+    if (
+      updateData.transportationPrice !== undefined ||
+      updateData.auctionPrice !== undefined
+    ) {
+      const newTransportationPrice =
+        updateData.transportationPrice ?? car.transportationPrice;
+      const newAuctionPrice = updateData.auctionPrice ?? car.auctionPrice;
+      updateData.totalCost = newTransportationPrice + newAuctionPrice;
+    }
+
     // Check if status is being updated to 'Green'
     const isStatusChangingToGreen =
       updateData.status === "Green" && car.status !== "Green";
@@ -114,6 +156,19 @@ export class CarsService {
         { new: true } // Return the updated document
       )
       .exec();
+
+    // Update user's total balance only if totalCost was actually changed
+    if (updateData.totalCost !== undefined) {
+      const oldTotalCost = car.totalCost || 0;
+      const newTotalCost = updateData.totalCost;
+
+      // Only update if there's an actual change in totalCost
+      if (oldTotalCost !== newTotalCost) {
+        // Calculate the difference to add to user's balance
+        const costDifference = newTotalCost - oldTotalCost;
+        await this.updateUserTotalBalance(updatedCar.username, costDifference);
+      }
+    }
 
     // If status changed to Green, send SMS notification
     if (isStatusChangingToGreen) {
