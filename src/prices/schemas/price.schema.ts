@@ -1,6 +1,8 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Model } from "mongoose";
 
+export type PriceDocument = Price & Document;
+
 @Schema({ timestamps: true, strict: false })
 export class Price extends Document {
   @Prop({ required: false, unique: true })

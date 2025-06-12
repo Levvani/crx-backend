@@ -5,7 +5,8 @@ import {
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { Price } from "./schemas/price.schema";
+import { Price, PriceDocument } from "./schemas/price.schema";
+import { DealerType, DealerTypeDocument } from "./schemas/dealer-type.schema";
 import { CreatePriceDto } from "./dto/create-price.dto";
 import { UpdatePriceDto } from "./dto/update-price.dto";
 import { AddDynamicKeyDto } from "./dto/add-dynamic-key.dto";
@@ -13,10 +14,15 @@ import * as XLSX from "xlsx";
 import * as fs from "fs";
 import * as path from "path";
 import { parse } from "csv-parse/sync";
+import { CreateDealerTypeDto } from "./dto/create-dealer-type.dto";
 
 @Injectable()
 export class PricesService {
-  constructor(@InjectModel(Price.name) private priceModel: Model<Price>) {}
+  constructor(
+    @InjectModel(Price.name) private priceModel: Model<PriceDocument>,
+    @InjectModel(DealerType.name)
+    private dealerTypeModel: Model<DealerTypeDocument>
+  ) {}
 
   async create(createPriceDto: CreatePriceDto): Promise<Price> {
     const createdPrice = new this.priceModel(createPriceDto);
@@ -166,5 +172,34 @@ export class PricesService {
       }
       throw error;
     }
+  }
+
+  // Dealer Type methods
+  async createDealerType(
+    createDealerTypeDto: CreateDealerTypeDto
+  ): Promise<DealerType> {
+    const createdDealerType = new this.dealerTypeModel(createDealerTypeDto);
+    return createdDealerType.save();
+  }
+
+  async findAllDealerTypes(): Promise<DealerType[]> {
+    return this.dealerTypeModel.find().exec();
+  }
+
+  async findDealerTypeById(id: string): Promise<DealerType> {
+    return this.dealerTypeModel.findById(id).exec();
+  }
+
+  async updateDealerType(
+    id: string,
+    updateData: Partial<CreateDealerTypeDto>
+  ): Promise<DealerType> {
+    return this.dealerTypeModel
+      .findByIdAndUpdate(id, updateData, { new: true })
+      .exec();
+  }
+
+  async deleteDealerType(id: string): Promise<DealerType> {
+    return this.dealerTypeModel.findByIdAndDelete(id).exec();
   }
 }

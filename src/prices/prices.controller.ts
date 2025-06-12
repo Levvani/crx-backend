@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Delete,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { PricesService } from "./prices.service";
@@ -23,13 +24,14 @@ import { Roles } from "../auth/decorators/roles.decorator";
 import { UserRole } from "../users/schemas/user.schema";
 import { diskStorage } from "multer";
 import { extname } from "path";
+import { CreateDealerTypeDto } from "./dto/create-dealer-type.dto";
 
 @Controller("basePrices")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PricesController {
   constructor(private readonly pricesService: PricesService) {}
 
-  @Post()
+  @Post("base")
   @Roles(UserRole.ADMIN)
   create(@Body() createPriceDto: CreatePriceDto) {
     return this.pricesService.create(createPriceDto);
@@ -70,7 +72,7 @@ export class PricesController {
     return this.pricesService.parseAndSaveFile(file);
   }
 
-  @Get()
+  @Get("base")
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
   findAll(@Request() req) {
     const userRole = req.user.role;
@@ -82,13 +84,13 @@ export class PricesController {
     return this.pricesService.findAll();
   }
 
-  @Get(":id")
+  @Get("base/:id")
   @Roles(UserRole.ADMIN)
   findOne(@Param("id", ParseIntPipe) id: number) {
     return this.pricesService.findOne(id);
   }
 
-  @Put(":id")
+  @Put("base/:id")
   @Roles(UserRole.ADMIN)
   update(
     @Param("id", ParseIntPipe) id: number,
@@ -101,5 +103,37 @@ export class PricesController {
   @Roles(UserRole.ADMIN)
   addDynamicKey(@Body() addDynamicKeyDto: AddDynamicKeyDto) {
     return this.pricesService.addDynamicKey(addDynamicKeyDto);
+  }
+
+  // Dealer Type endpoints
+  @Post("dealer-types")
+  @Roles(UserRole.ADMIN)
+  async createDealerType(@Body() createDealerTypeDto: CreateDealerTypeDto) {
+    return this.pricesService.createDealerType(createDealerTypeDto);
+  }
+
+  @Get("dealer-types/:id")
+  async findDealerTypeById(@Param("id") id: string) {
+    return this.pricesService.findDealerTypeById(id);
+  }
+
+  @Get("dealer-types")
+  async findAllDealerTypes() {
+    return this.pricesService.findAllDealerTypes();
+  }
+
+  @Put("dealer-types/:id")
+  @Roles(UserRole.ADMIN)
+  async updateDealerType(
+    @Param("id") id: string,
+    @Body() updateData: Partial<CreateDealerTypeDto>
+  ) {
+    return this.pricesService.updateDealerType(id, updateData);
+  }
+
+  @Delete("dealer-types/:id")
+  @Roles(UserRole.ADMIN)
+  async deleteDealerType(@Param("id") id: string) {
+    return this.pricesService.deleteDealerType(id);
   }
 }
