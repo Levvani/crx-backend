@@ -37,7 +37,7 @@ export class PricesService {
 
       return {
         location: priceObj.location,
-        [level]: levelAmount,
+        price: levelAmount,
       };
     });
   }
