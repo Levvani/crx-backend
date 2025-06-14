@@ -17,7 +17,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { PricesService } from './prices.service';
 import { CreatePriceDto } from './dto/create-price.dto';
 import { UpdatePriceDto } from './dto/update-price.dto';
-import { AddDynamicKeyDto } from './dto/add-dynamic-key.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -68,12 +67,12 @@ export class PricesController {
 
   @Get('base')
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
-  findAll(@Request() req) {
+  findAll(@Request() req: Request & { user: { role: UserRole; level: number } }) {
     const userRole = req.user.role;
     const userLevel = req.user.level;
 
     if (userRole === UserRole.DEALER) {
-      return this.pricesService.findAllForDealer(userLevel);
+      return this.pricesService.findAllForDealer(userLevel.toString());
     }
     return this.pricesService.findAll();
   }
@@ -88,12 +87,6 @@ export class PricesController {
   @Roles(UserRole.ADMIN)
   update(@Param('id', ParseIntPipe) id: number, @Body() updatePriceDto: UpdatePriceDto) {
     return this.pricesService.update(id, updatePriceDto);
-  }
-
-  @Put('add/dynamic-key')
-  @Roles(UserRole.ADMIN)
-  addDynamicKey(@Body() addDynamicKeyDto: AddDynamicKeyDto) {
-    return this.pricesService.addDynamicKey(addDynamicKeyDto);
   }
 
   // Dealer Type endpoints

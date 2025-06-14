@@ -5,7 +5,6 @@ import { Price, PriceDocument } from './schemas/price.schema';
 import { DealerType, DealerTypeDocument } from './schemas/dealer-type.schema';
 import { CreatePriceDto } from './dto/create-price.dto';
 import { UpdatePriceDto } from './dto/update-price.dto';
-import { AddDynamicKeyDto } from './dto/add-dynamic-key.dto';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -61,25 +60,6 @@ export class PricesService {
     }
 
     return updatedPrice;
-  }
-
-  async addDynamicKey(addDynamicKeyDto: AddDynamicKeyDto): Promise<Price[]> {
-    const { name, amount } = addDynamicKeyDto;
-
-    // First, get all existing prices
-    const prices = await this.priceModel.find().exec();
-
-    // Update each price document individually
-    for (const price of prices) {
-      await this.priceModel.findByIdAndUpdate(
-        price._id,
-        { $set: { [name]: amount } },
-        { new: true },
-      );
-    }
-
-    // Return all updated documents
-    return this.priceModel.find().sort({ id: 1 }).exec();
   }
 
   async parseAndSaveFile(file: Express.Multer.File): Promise<Price[]> {
@@ -162,8 +142,23 @@ export class PricesService {
 
   // Dealer Type methods
   async createDealerType(createDealerTypeDto: CreateDealerTypeDto): Promise<DealerType> {
+    // First create the dealer type
     const createdDealerType = new this.dealerTypeModel(createDealerTypeDto);
-    return createdDealerType.save();
+    const savedDealerType = await createdDealerType.save();
+
+    // Then update all existing price objects with the new dealer type
+    const prices = await this.priceModel.find().exec();
+
+    // Update each price document with the new dealer type field
+    for (const price of prices) {
+      await this.priceModel.findByIdAndUpdate(
+        price._id,
+        { $set: { [savedDealerType.name]: savedDealerType.amount } },
+        { new: true },
+      );
+    }
+
+    return savedDealerType;
   }
 
   async findAllDealerTypes(): Promise<DealerType[]> {
@@ -178,10 +173,65 @@ export class PricesService {
     id: string,
     updateData: Partial<CreateDealerTypeDto>,
   ): Promise<DealerType> {
+    const dealerType = await this.dealerTypeModel.findById(id);
+    if (!dealerType) {
+      throw new NotFoundException(`Dealer type with ID ${id} not found`);
+    }
+
+    // If name is being updated, we need to update all price objects
+    if (updateData.name && updateData.name !== dealerType.name) {
+      const prices = await this.priceModel.find().exec();
+
+      // Update each price document
+      for (const price of prices) {
+        const priceObj = price.toObject();
+        const oldValue = priceObj[dealerType.name];
+
+        // Remove old field and add new field
+        await this.priceModel.findByIdAndUpdate(
+          price._id,
+          {
+            $unset: { [dealerType.name]: 1 },
+            $set: { [updateData.name]: oldValue },
+          },
+          { new: true },
+        );
+      }
+    }
+
+    // If amount is being updated, update all price objects with the new amount
+    if (updateData.amount !== undefined) {
+      const prices = await this.priceModel.find().exec();
+
+      for (const price of prices) {
+        await this.priceModel.findByIdAndUpdate(
+          price._id,
+          { $set: { [dealerType.name]: updateData.amount } },
+          { new: true },
+        );
+      }
+    }
+
     return this.dealerTypeModel.findByIdAndUpdate(id, updateData, { new: true }).exec();
   }
 
   async deleteDealerType(id: string): Promise<DealerType> {
+    const dealerType = await this.dealerTypeModel.findById(id);
+    if (!dealerType) {
+      throw new NotFoundException(`Dealer type with ID ${id} not found`);
+    }
+
+    // Remove the dealer type field from all price objects
+    const prices = await this.priceModel.find().exec();
+
+    for (const price of prices) {
+      await this.priceModel.findByIdAndUpdate(
+        price._id,
+        { $unset: { [dealerType.name]: 1 } },
+        { new: true },
+      );
+    }
+
     return this.dealerTypeModel.findByIdAndDelete(id).exec();
   }
 }
