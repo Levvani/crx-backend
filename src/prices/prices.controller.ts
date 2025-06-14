@@ -95,12 +95,12 @@ export class PricesController {
   async createDealerType(@Body() createDealerTypeDto: CreateDealerTypeDto) {
     return this.pricesService.createDealerType(createDealerTypeDto);
   }
-
+  @Roles(UserRole.ADMIN)
   @Get('dealer-types/:id')
   async findDealerTypeById(@Param('id') id: string) {
     return this.pricesService.findDealerTypeById(id);
   }
-
+  @Roles(UserRole.ADMIN)
   @Get('dealer-types')
   async findAllDealerTypes() {
     return this.pricesService.findAllDealerTypes();
