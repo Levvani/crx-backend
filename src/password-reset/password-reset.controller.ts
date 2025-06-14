@@ -9,17 +9,14 @@ export class PasswordResetController {
 
   @Public()
   @Post('request')
-  async requestReset(
-    @Body() { email }: RequestResetDto,
-  ): Promise<{ message: string }> {
+  async requestReset(@Body() { email }: RequestResetDto): Promise<{ message: string }> {
     if (!email) {
       throw new BadRequestException('Email is required');
     }
 
     await this.passwordResetService.createPasswordResetToken(email);
     return {
-      message:
-        'If an account exists with this email, a password reset link has been sent.',
+      message: 'If an account exists with this email, a password reset link has been sent.',
     };
   }
 

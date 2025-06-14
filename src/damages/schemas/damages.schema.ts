@@ -1,10 +1,10 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
 
 export enum DamageStatus {
-  PENDING = "pending",
-  REJECTED = "rejected",
-  APPROVED = "approved",
+  PENDING = 'pending',
+  REJECTED = 'rejected',
+  APPROVED = 'approved',
 }
 
 export type DamageDocument = Damage & Document;

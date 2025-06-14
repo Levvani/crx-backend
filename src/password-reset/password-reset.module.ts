@@ -2,19 +2,14 @@ import { Module } from '@nestjs/common';
 import { PasswordResetService } from './password-reset.service';
 import { PasswordResetController } from './password-reset.controller';
 import { MongooseModule } from '@nestjs/mongoose';
-import {
-  PasswordReset,
-  PasswordResetSchema,
-} from './schemas/password-reset.schema';
+import { PasswordReset, PasswordResetSchema } from './schemas/password-reset.schema';
 import { UsersModule } from '../users/users.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: PasswordReset.name, schema: PasswordResetSchema },
-    ]),
+    MongooseModule.forFeature([{ name: PasswordReset.name, schema: PasswordResetSchema }]),
     UsersModule,
     MailerModule.forRootAsync({
       imports: [ConfigModule],

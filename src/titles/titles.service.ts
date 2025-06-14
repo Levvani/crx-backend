@@ -1,19 +1,17 @@
 // src/titles/titles.service.ts
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Title, TitleDocument } from "./schemas/title.schema";
-import { CreateTitleDto } from "./dto/create-title.dto";
-import { UpdateTitleDto } from "./dto/update-title.dto";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Title, TitleDocument } from './schemas/title.schema';
+import { CreateTitleDto } from './dto/create-title.dto';
+import { UpdateTitleDto } from './dto/update-title.dto';
 
 @Injectable()
 export class TitlesService {
-  constructor(
-    @InjectModel(Title.name) private titleModel: Model<TitleDocument>
-  ) {}
+  constructor(@InjectModel(Title.name) private titleModel: Model<TitleDocument>) {}
 
   async create(
-    createTitleDto: CreateTitleDto | CreateTitleDto[]
+    createTitleDto: CreateTitleDto | CreateTitleDto[],
   ): Promise<TitleDocument | TitleDocument[]> {
     // Handle single DTO case
     if (!Array.isArray(createTitleDto)) {
@@ -28,19 +26,14 @@ export class TitlesService {
    * Efficiently creates multiple titles using MongoDB bulk operations
    * This is much faster than creating titles one by one
    */
-  async createBulk(
-    createTitleDtos: CreateTitleDto[]
-  ): Promise<TitleDocument[]> {
+  async createBulk(createTitleDtos: CreateTitleDto[]): Promise<TitleDocument[]> {
     if (createTitleDtos.length === 0) {
       return [];
     }
 
     try {
       // Find the highest titleID in the database once
-      const highestTitle = await this.titleModel
-        .findOne()
-        .sort({ titleID: -1 })
-        .exec();
+      const highestTitle = await this.titleModel.findOne().sort({ titleID: -1 }).exec();
 
       let nextTitleID = highestTitle ? highestTitle.titleID + 1 : 1;
       const now = new Date();
@@ -72,9 +65,9 @@ export class TitlesService {
         .sort({ titleID: 1 })
         .exec();
     } catch (error) {
-      console.error("Bulk title creation failed:", error);
+      console.error('Bulk title creation failed:', error);
       // If bulk insert fails (e.g., due to duplicate keys), fall back to individual creation
-      console.log("Falling back to individual title creation...");
+      console.log('Falling back to individual title creation...');
       const createdTitles: TitleDocument[] = [];
 
       for (const dto of createTitleDtos) {
@@ -92,14 +85,9 @@ export class TitlesService {
   }
 
   // Helper method to create a single title
-  private async createSingleTitle(
-    createTitleDto: CreateTitleDto
-  ): Promise<TitleDocument> {
+  private async createSingleTitle(createTitleDto: CreateTitleDto): Promise<TitleDocument> {
     // Find the highest titleID in the database
-    const highestTitle = await this.titleModel
-      .findOne()
-      .sort({ titleID: -1 })
-      .exec();
+    const highestTitle = await this.titleModel.findOne().sort({ titleID: -1 }).exec();
 
     // Generate the next titleID
     const nextTitleID = highestTitle ? highestTitle.titleID + 1 : 1;
@@ -131,10 +119,7 @@ export class TitlesService {
     return this.titleModel.findOne({ name }).exec();
   }
 
-  async update(
-    titleID: number,
-    updateTitleDto: UpdateTitleDto
-  ): Promise<TitleDocument> {
+  async update(titleID: number, updateTitleDto: UpdateTitleDto): Promise<TitleDocument> {
     // First check if the title exists
     await this.findOne(titleID);
 
@@ -148,7 +133,7 @@ export class TitlesService {
             updatedAt: new Date(),
           },
         },
-        { new: true }
+        { new: true },
       )
       .exec();
 

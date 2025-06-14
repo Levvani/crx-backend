@@ -4,13 +4,13 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
-} from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import * as bcrypt from "bcrypt";
-import { User, UserDocument, UserRole } from "./schemas/user.schema";
-import { CreateUserDto } from "./dto/create-user.dto";
-import { UpdateUserDto } from "./dto/update-user.dto";
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import * as bcrypt from 'bcrypt';
+import { User, UserDocument, UserRole } from './schemas/user.schema';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 interface PaginationOptions {
   page: number;
@@ -28,14 +28,11 @@ export class UsersService {
     try {
       // Check if user already exists
       const existingUser = await this.userModel.findOne({
-        $or: [
-          { username: createUserDto.username },
-          { email: createUserDto.email },
-        ],
+        $or: [{ username: createUserDto.username }, { email: createUserDto.email }],
       });
 
       if (existingUser) {
-        throw new ConflictException("Username or email already exists");
+        throw new ConflictException('Username or email already exists');
       }
 
       // Hash the password
@@ -43,28 +40,18 @@ export class UsersService {
       const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
 
       // Find the highest userID in the database
-      const highestUser = await this.userModel
-        .findOne()
-        .sort({ userID: -1 })
-        .exec();
+      const highestUser = await this.userModel.findOne().sort({ userID: -1 }).exec();
 
       // Ensure we have a valid numeric userID
       let nextUserID = 1; // Default to 1 if no users exist
-      if (
-        highestUser &&
-        typeof highestUser.userID === "number" &&
-        !isNaN(highestUser.userID)
-      ) {
+      if (highestUser && typeof highestUser.userID === 'number' && !isNaN(highestUser.userID)) {
         nextUserID = highestUser.userID + 1;
       }
 
       // If userID was provided in the DTO and it's valid, use it
       if (createUserDto.userID !== undefined) {
-        if (
-          typeof createUserDto.userID !== "number" ||
-          isNaN(createUserDto.userID)
-        ) {
-          throw new BadRequestException("userID must be a valid number");
+        if (typeof createUserDto.userID !== 'number' || isNaN(createUserDto.userID)) {
+          throw new BadRequestException('userID must be a valid number');
         }
         nextUserID = createUserDto.userID;
       }
@@ -78,20 +65,20 @@ export class UsersService {
         password: hashedPassword,
         email: createUserDto.email,
         role: createUserDto.role || UserRole.DEALER,
-        level: createUserDto.level || "A",
+        level: createUserDto.level || 'A',
         totalBalance: createUserDto.totalBalance || 0,
         profitBalance: createUserDto.profitBalance || 0,
         phoneNumber: createUserDto.phoneNumber || null,
       });
 
-      console.log("Attempting to save user:", {
+      console.log('Attempting to save user:', {
         ...newUser.toObject(),
-        password: "[REDACTED]",
+        password: '[REDACTED]',
       });
 
       return await newUser.save();
     } catch (error) {
-      console.error("Error creating user:", error);
+      console.error('Error creating user:', error);
       throw error;
     }
   }
@@ -114,9 +101,7 @@ export class UsersService {
     return user;
   }
 
-  async findAll(
-    paginationOptions: PaginationOptions = { page: 1, limit: 25 }
-  ): Promise<{
+  async findAll(paginationOptions: PaginationOptions = { page: 1, limit: 25 }): Promise<{
     users: UserDocument[];
     total: number;
     totalPages: number;
@@ -134,25 +119,25 @@ export class UsersService {
       filter.role = role;
     }
 
-    if (level !== undefined && level !== null && level !== "") {
+    if (level !== undefined && level !== null && level !== '') {
       console.log(`Adding level filter: ${level}`);
       filter.level = level;
     }
 
-    if (search !== undefined && search !== null && search !== "") {
+    if (search !== undefined && search !== null && search !== '') {
       console.log(`Adding search filter for: ${search}`);
       filter.$or = [
-        { username: { $regex: search, $options: "i" } },
-        { firstname: { $regex: search, $options: "i" } },
-        { lastname: { $regex: search, $options: "i" } },
+        { username: { $regex: search, $options: 'i' } },
+        { firstname: { $regex: search, $options: 'i' } },
+        { lastname: { $regex: search, $options: 'i' } },
       ];
     }
 
-    console.log("MongoDB filter:", JSON.stringify(filter));
+    console.log('MongoDB filter:', JSON.stringify(filter));
 
     // Check if filter is empty
     if (Object.keys(filter).length === 0) {
-      console.log("Warning: Filter is empty - will return all results");
+      console.log('Warning: Filter is empty - will return all results');
     }
 
     const [users, total] = await Promise.all([
@@ -190,20 +175,13 @@ export class UsersService {
     return user;
   }
 
-  async updatePassword(
-    id: number,
-    hashedPassword: string
-  ): Promise<UserDocument> {
+  async updatePassword(id: number, hashedPassword: string): Promise<UserDocument> {
     if (isNaN(id)) {
       throw new BadRequestException(`Invalid userID format: ${id}`);
     }
 
     const user = await this.userModel
-      .findOneAndUpdate(
-        { userID: id },
-        { password: hashedPassword },
-        { new: true }
-      )
+      .findOneAndUpdate({ userID: id }, { password: hashedPassword }, { new: true })
       .exec();
 
     if (!user) {
@@ -221,9 +199,7 @@ export class UsersService {
     return user;
   }
 
-  async findDealers(
-    paginationOptions: PaginationOptions = { page: 1, limit: 25 }
-  ): Promise<{
+  async findDealers(paginationOptions: PaginationOptions = { page: 1, limit: 25 }): Promise<{
     users: UserDocument[];
     total: number;
     totalPages: number;
@@ -236,29 +212,24 @@ export class UsersService {
     // Build filter object with fixed dealer role
     const filter: Record<string, any> = { role: UserRole.DEALER };
 
-    if (level !== undefined && level !== null && level !== "") {
+    if (level !== undefined && level !== null && level !== '') {
       console.log(`Adding level filter: ${level}`);
       filter.level = level;
     }
 
-    if (search !== undefined && search !== null && search !== "") {
+    if (search !== undefined && search !== null && search !== '') {
       console.log(`Adding search filter for: ${search}`);
       filter.$or = [
-        { username: { $regex: search, $options: "i" } },
-        { firstname: { $regex: search, $options: "i" } },
-        { lastname: { $regex: search, $options: "i" } },
+        { username: { $regex: search, $options: 'i' } },
+        { firstname: { $regex: search, $options: 'i' } },
+        { lastname: { $regex: search, $options: 'i' } },
       ];
     }
 
-    console.log("MongoDB filter for dealers:", JSON.stringify(filter));
+    console.log('MongoDB filter for dealers:', JSON.stringify(filter));
 
     const [users, total] = await Promise.all([
-      this.userModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec(),
+      this.userModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
       this.userModel.countDocuments(filter).exec(),
     ]);
 
@@ -272,43 +243,24 @@ export class UsersService {
   }
 
   async addRefreshToken(userId: number, refreshToken: string): Promise<void> {
-    await this.userModel.updateOne(
-      { userID: userId },
-      { $push: { refreshTokens: refreshToken } }
-    );
+    await this.userModel.updateOne({ userID: userId }, { $push: { refreshTokens: refreshToken } });
   }
 
-  async removeRefreshToken(
-    userID: number,
-    refreshToken: string
-  ): Promise<void> {
-    await this.userModel.updateOne(
-      { userID: userID },
-      { $pull: { refreshTokens: refreshToken } }
-    );
+  async removeRefreshToken(userID: number, refreshToken: string): Promise<void> {
+    await this.userModel.updateOne({ userID: userID }, { $pull: { refreshTokens: refreshToken } });
   }
 
   async removeAllRefreshTokens(userID: string): Promise<void> {
-    await this.userModel.updateOne(
-      { userID: userID },
-      { $set: { refreshTokens: [] } }
-    );
+    await this.userModel.updateOne({ userID: userID }, { $set: { refreshTokens: [] } });
   }
 
-  // Remove the updateRole method entirely
-
-  async update(
-    userID: number,
-    updateUserDto: UpdateUserDto
-  ): Promise<UserDocument> {
+  async update(userID: number, updateUserDto: UpdateUserDto): Promise<UserDocument> {
     if (isNaN(userID)) {
       throw new BadRequestException(`Invalid userID format: ${userID}`);
     }
 
     // Check if user exists
-    const existingUser = await this.userModel
-      .findOne({ userID: userID })
-      .exec();
+    const existingUser = await this.userModel.findOne({ userID: userID }).exec();
     if (!existingUser) {
       throw new NotFoundException(`User with userID ${userID} not found`);
     }
@@ -323,11 +275,11 @@ export class UsersService {
     }
 
     // Ensure username and role cannot be updated
-    if ("username" in updateData) {
+    if ('username' in updateData) {
       delete updateData.username;
     }
 
-    if ("role" in updateData) {
+    if ('role' in updateData) {
       delete updateData.role;
     }
 
@@ -340,9 +292,7 @@ export class UsersService {
 
       const duplicateUser = await this.userModel.findOne(query).exec();
       if (duplicateUser) {
-        throw new ConflictException(
-          `Email '${updateData.email}' is already in use`
-        );
+        throw new ConflictException(`Email '${updateData.email}' is already in use`);
       }
     }
 
@@ -352,5 +302,20 @@ export class UsersService {
       .exec();
 
     return updatedUser;
+  }
+
+  async updateTotalBalance(userID: number, costDifference: number): Promise<void> {
+    if (isNaN(userID)) {
+      throw new BadRequestException(`Invalid userID format: ${userID}`);
+    }
+
+    const result = await this.userModel.updateOne(
+      { userID },
+      { $inc: { totalBalance: costDifference } },
+    );
+
+    if (result.matchedCount === 0) {
+      throw new NotFoundException(`User with userID ${userID} not found`);
+    }
   }
 }

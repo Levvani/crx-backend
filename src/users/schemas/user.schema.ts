@@ -1,12 +1,12 @@
 // src/users/schemas/user.schema.ts
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
 
 export enum UserRole {
-  ADMIN = "admin",
-  MODERATOR = "moderator",
-  ACCOUNTANT = "accountant",
-  DEALER = "dealer",
+  ADMIN = 'admin',
+  MODERATOR = 'moderator',
+  ACCOUNTANT = 'accountant',
+  DEALER = 'dealer',
 }
 
 export type UserDocument = User & Document;

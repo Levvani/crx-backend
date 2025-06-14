@@ -1,11 +1,5 @@
-import {
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  IsArray,
-} from "class-validator";
-import { Type } from "class-transformer";
+import { IsNotEmpty, IsNumber, IsOptional, IsString, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateDamageDto {
   @IsNotEmpty()

@@ -1,27 +1,23 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Price, PriceDocument } from "./schemas/price.schema";
-import { DealerType, DealerTypeDocument } from "./schemas/dealer-type.schema";
-import { CreatePriceDto } from "./dto/create-price.dto";
-import { UpdatePriceDto } from "./dto/update-price.dto";
-import { AddDynamicKeyDto } from "./dto/add-dynamic-key.dto";
-import * as XLSX from "xlsx";
-import * as fs from "fs";
-import * as path from "path";
-import { parse } from "csv-parse/sync";
-import { CreateDealerTypeDto } from "./dto/create-dealer-type.dto";
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Price, PriceDocument } from './schemas/price.schema';
+import { DealerType, DealerTypeDocument } from './schemas/dealer-type.schema';
+import { CreatePriceDto } from './dto/create-price.dto';
+import { UpdatePriceDto } from './dto/update-price.dto';
+import { AddDynamicKeyDto } from './dto/add-dynamic-key.dto';
+import * as XLSX from 'xlsx';
+import * as fs from 'fs';
+import * as path from 'path';
+import { parse } from 'csv-parse/sync';
+import { CreateDealerTypeDto } from './dto/create-dealer-type.dto';
 
 @Injectable()
 export class PricesService {
   constructor(
     @InjectModel(Price.name) private priceModel: Model<PriceDocument>,
     @InjectModel(DealerType.name)
-    private dealerTypeModel: Model<DealerTypeDocument>
+    private dealerTypeModel: Model<DealerTypeDocument>,
   ) {}
 
   async create(createPriceDto: CreatePriceDto): Promise<Price> {
@@ -38,8 +34,7 @@ export class PricesService {
 
     return prices.map((price) => {
       const priceObj = price.toObject();
-      const levelAmount =
-        priceObj[level] + priceObj.upsellAmount || priceObj.upsellAmount || 0;
+      const levelAmount = priceObj[level] + priceObj.upsellAmount || priceObj.upsellAmount || 0;
 
       return {
         location: priceObj.location,
@@ -79,7 +74,7 @@ export class PricesService {
       await this.priceModel.findByIdAndUpdate(
         price._id,
         { $set: { [name]: amount } },
-        { new: true }
+        { new: true },
       );
     }
 
@@ -93,41 +88,32 @@ export class PricesService {
     let rows: any[] = [];
 
     try {
-      if (fileExt === ".xlsx") {
+      if (fileExt === '.xlsx') {
         const workbook = XLSX.readFile(filePath);
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         rows = XLSX.utils.sheet_to_json(worksheet);
-      } else if (fileExt === ".csv") {
-        const fileContent = fs.readFileSync(filePath, "utf-8");
+      } else if (fileExt === '.csv') {
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
         rows = parse(fileContent, {
           columns: true,
           skip_empty_lines: true,
         });
-      } else if (fileExt === ".numbers") {
-        throw new BadRequestException(
-          "Numbers file format is not supported yet"
-        );
+      } else if (fileExt === '.numbers') {
+        throw new BadRequestException('Numbers file format is not supported yet');
       }
 
       // Validate required columns
-      const requiredColumns = ["location", "upsellAmount", "basePrice"];
+      const requiredColumns = ['location', 'upsellAmount', 'basePrice'];
       const firstRow = rows[0];
-      const missingColumns = requiredColumns.filter(
-        (col) => !(col in firstRow)
-      );
+      const missingColumns = requiredColumns.filter((col) => !(col in firstRow));
 
       if (missingColumns.length > 0) {
-        throw new BadRequestException(
-          `Missing required columns: ${missingColumns.join(", ")}`
-        );
+        throw new BadRequestException(`Missing required columns: ${missingColumns.join(', ')}`);
       }
 
       // Find the highest id in the database
-      const highestPrice = await this.priceModel
-        .findOne()
-        .sort({ id: -1 })
-        .exec();
+      const highestPrice = await this.priceModel.findOne().sort({ id: -1 }).exec();
 
       let nextId = highestPrice ? highestPrice.id + 1 : 1;
       const now = new Date();
@@ -175,9 +161,7 @@ export class PricesService {
   }
 
   // Dealer Type methods
-  async createDealerType(
-    createDealerTypeDto: CreateDealerTypeDto
-  ): Promise<DealerType> {
+  async createDealerType(createDealerTypeDto: CreateDealerTypeDto): Promise<DealerType> {
     const createdDealerType = new this.dealerTypeModel(createDealerTypeDto);
     return createdDealerType.save();
   }
@@ -192,11 +176,9 @@ export class PricesService {
 
   async updateDealerType(
     id: string,
-    updateData: Partial<CreateDealerTypeDto>
+    updateData: Partial<CreateDealerTypeDto>,
   ): Promise<DealerType> {
-    return this.dealerTypeModel
-      .findByIdAndUpdate(id, updateData, { new: true })
-      .exec();
+    return this.dealerTypeModel.findByIdAndUpdate(id, updateData, { new: true }).exec();
   }
 
   async deleteDealerType(id: string): Promise<DealerType> {

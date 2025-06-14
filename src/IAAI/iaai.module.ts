@@ -1,7 +1,7 @@
-import { Module } from "@nestjs/common";
-import { HttpModule } from "@nestjs/axios";
-import { IaaIController } from "./iaai.controller";
-import { IaaIService } from "./iaai.service";
+import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
+import { IaaIController } from './iaai.controller';
+import { IaaIService } from './iaai.service';
 
 @Module({
   imports: [HttpModule],

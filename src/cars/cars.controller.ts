@@ -14,41 +14,41 @@ import {
   ParseIntPipe,
   Request,
   ForbiddenException,
-} from "@nestjs/common";
-import { FilesInterceptor } from "@nestjs/platform-express";
-import { CarsService } from "./cars.service";
-import { CreateCarDto } from "./dto/create-car.dto";
-import { UpdateCarDto } from "./dto/update-car.dto";
-import { PaginationDto } from "./dto/pagination.dto";
-import { Car } from "./schemas/car.schema";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { Roles } from "../auth/decorators/roles.decorator";
-import { UserRole } from "../users/schemas/user.schema";
-import { multerOptions } from "../config/multer.config";
+} from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { CarsService } from './cars.service';
+import { CreateCarDto } from './dto/create-car.dto';
+import { UpdateCarDto } from './dto/update-car.dto';
+import { PaginationDto } from './dto/pagination.dto';
+import { Car } from './schemas/car.schema';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/schemas/user.schema';
+import { multerOptions } from '../config/multer.config';
 
-@Controller("cars")
+@Controller('cars')
 export class CarsController {
   constructor(private readonly carsService: CarsService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  @UseInterceptors(FilesInterceptor("photos", 10, multerOptions))
+  @UseInterceptors(FilesInterceptor('photos', 10, multerOptions))
   async create(
     @Body() createCarDto: CreateCarDto,
-    @UploadedFiles() photos: Express.Multer.File[]
+    @UploadedFiles() photos: Express.Multer.File[],
   ): Promise<Car> {
     return this.carsService.create(createCarDto, photos);
   }
 
-  @Put(":carID")
+  @Put(':carID')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  @UseInterceptors(FilesInterceptor("photos", 10, multerOptions))
+  @UseInterceptors(FilesInterceptor('photos', 10, multerOptions))
   async update(
-    @Param("carID", ParseIntPipe) carID: number,
-    @Body() updateCarDto: UpdateCarDto
+    @Param('carID', ParseIntPipe) carID: number,
+    @Body() updateCarDto: UpdateCarDto,
   ): Promise<Car> {
     return this.carsService.update(carID, updateCarDto as CreateCarDto);
   }
@@ -60,11 +60,11 @@ export class CarsController {
     @Request() req,
     @Query(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false }))
     paginationDto: PaginationDto,
-    @Query("vinCode") vinCode?: string,
-    @Query("containerNumber") containerNumber?: string,
-    @Query("username") username?: string,
-    @Query("status") status?: string,
-    @Query("dateOfPurchase") dateOfPurchase?: string
+    @Query('vinCode') vinCode?: string,
+    @Query('containerNumber') containerNumber?: string,
+    @Query('username') username?: string,
+    @Query('status') status?: string,
+    @Query('dateOfPurchase') dateOfPurchase?: string,
   ): Promise<{
     cars: any[];
     total: number;
@@ -72,7 +72,7 @@ export class CarsController {
     page: number;
     limit: number;
   }> {
-    console.log("BBBBBBBBBBB", req.user);
+    console.log('BBBBBBBBBBB', req.user);
 
     // For dealers, force username filter to be their own username
     if (req.user.role === UserRole.DEALER) {
@@ -90,7 +90,7 @@ export class CarsController {
       {
         page: paginationDto.page,
         limit: paginationDto.limit,
-      }
+      },
     );
 
     // Transform the cars to include only the requested fields
@@ -108,7 +108,7 @@ export class CarsController {
         shippingLine: car.shippingLine || null,
         containerNumber: car.containerNumber || null,
         balanceOfCar: 0, // Set to 0 by default as requested
-        image: "/assets/car-logo-icon-emblem-design-600nw-473088037.webp", // Use the image from assets folder
+        image: '/assets/car-logo-icon-emblem-design-600nw-473088037.webp', // Use the image from assets folder
       };
     });
 
@@ -121,23 +121,15 @@ export class CarsController {
     };
   }
 
-  @Get(":carID")
+  @Get(':carID')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
-  async findOne(
-    @Param("carID", ParseIntPipe) carID: number,
-    @Request() req
-  ): Promise<any> {
+  async findOne(@Param('carID', ParseIntPipe) carID: number, @Request() req): Promise<any> {
     const car = await this.carsService.findOne(carID);
 
     // For dealers, check if the car belongs to them
-    if (
-      req.user.role === UserRole.DEALER &&
-      car.username !== req.user.username
-    ) {
-      throw new ForbiddenException(
-        "You do not have permission to view this car"
-      );
+    if (req.user.role === UserRole.DEALER && car.username !== req.user.username) {
+      throw new ForbiddenException('You do not have permission to view this car');
     }
     // Return all fields from CreateCarDto plus the requested additional fields
     return {
@@ -172,7 +164,7 @@ export class CarsController {
       profitDifference: 0,
 
       // Keep the image field from your original response
-      image: "/assets/car-logo-icon-emblem-design-600nw-473088037.webp",
+      image: '/assets/car-logo-icon-emblem-design-600nw-473088037.webp',
       // Remove balanceOfCar as it's being replaced by paymentLeft
       // balanceOfCar: 0,
     };
@@ -181,7 +173,7 @@ export class CarsController {
   @Delete()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async delete(@Body("carID") carID: number): Promise<Car> {
+  async delete(@Body('carID') carID: number): Promise<Car> {
     return this.carsService.delete(carID);
   }
 }

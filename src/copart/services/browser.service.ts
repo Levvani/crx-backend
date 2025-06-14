@@ -1,5 +1,5 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { Browser, chromium } from "playwright";
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Browser, chromium } from 'playwright';
 
 @Injectable()
 export class BrowserService implements OnModuleInit, OnModuleDestroy {
@@ -9,13 +9,13 @@ export class BrowserService implements OnModuleInit, OnModuleDestroy {
     this.browser = await chromium.launch({
       headless: true, // Set to false for debugging
     });
-    console.log("Browser service initialized");
+    console.log('Browser service initialized');
   }
 
   async onModuleDestroy() {
     if (this.browser) {
       await this.browser.close();
-      console.log("Browser service closed");
+      console.log('Browser service closed');
     }
   }
 

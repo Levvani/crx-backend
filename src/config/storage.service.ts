@@ -1,8 +1,8 @@
-import { Injectable } from "@nestjs/common";
-import { Storage } from "@google-cloud/storage";
-import { v4 as uuid } from "uuid";
-import { extname } from "path";
-import { ConfigService } from "@nestjs/config";
+import { Injectable } from '@nestjs/common';
+import { Storage } from '@google-cloud/storage';
+import { v4 as uuid } from 'uuid';
+import { extname } from 'path';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class StorageService {
@@ -11,7 +11,7 @@ export class StorageService {
 
   constructor(private configService: ConfigService) {
     // Initialize Storage with explicit credentials from environment
-    const keyFilePath = this.configService.get("GCS_KEY_FILE_PATH");
+    const keyFilePath = this.configService.get('GCS_KEY_FILE_PATH');
 
     if (keyFilePath) {
       this.storage = new Storage({
@@ -22,12 +22,12 @@ export class StorageService {
       this.storage = new Storage();
     }
 
-    this.bucket = this.configService.get("GCS_BUCKET_NAME") || "default-bucket";
+    this.bucket = this.configService.get('GCS_BUCKET_NAME') || 'default-bucket';
   }
 
   async uploadFile(file: Express.Multer.File): Promise<string> {
     if (!file) {
-      throw new Error("No file provided");
+      throw new Error('No file provided');
     }
 
     const fileName = `damages/${uuid()}${extname(file.originalname)}`;
@@ -41,11 +41,11 @@ export class StorageService {
     });
 
     return new Promise((resolve, reject) => {
-      stream.on("error", (error) => {
+      stream.on('error', (error) => {
         reject(error);
       });
 
-      stream.on("finish", () => {
+      stream.on('finish', () => {
         const publicUrl = `https://storage.googleapis.com/${this.bucket}/${fileName}`;
         resolve(publicUrl);
       });

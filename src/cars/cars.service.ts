@@ -1,13 +1,13 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Car, CarDocument } from "./schemas/car.schema";
-import { CreateCarDto } from "./dto/create-car.dto";
-import { UpdateCarDto } from "./dto/update-car.dto";
-import { UsersService } from "../users/users.service";
-import { SmsService } from "../sms/sms.service";
-import { PricesService } from "../prices/prices.service";
-import { User } from "../users/schemas/user.schema";
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Car, CarDocument } from './schemas/car.schema';
+import { CreateCarDto } from './dto/create-car.dto';
+import { UpdateCarDto } from './dto/update-car.dto';
+import { UsersService } from '../users/users.service';
+import { SmsService } from '../sms/sms.service';
+import { PricesService } from '../prices/prices.service';
+import { User } from '../users/schemas/user.schema';
 
 interface CarFilters {
   vinCode?: string;
@@ -28,13 +28,10 @@ export class CarsService {
     @InjectModel(Car.name) private carModel: Model<CarDocument>,
     private usersService: UsersService,
     private smsService: SmsService,
-    private pricesService: PricesService
+    private pricesService: PricesService,
   ) {}
 
-  private async updateUserTotalBalance(
-    username: string,
-    totalCost: number
-  ): Promise<void> {
+  private async updateUserTotalBalance(username: string, totalCost: number): Promise<void> {
     try {
       const user = await this.usersService.findByUsername(username);
       const newTotalBalance = (user.totalBalance || 0) + totalCost;
@@ -42,27 +39,19 @@ export class CarsService {
         totalBalance: newTotalBalance,
       });
     } catch (error) {
-      console.error(
-        `Failed to update total balance for user ${username}:`,
-        error
-      );
+      console.error(`Failed to update total balance for user ${username}:`, error);
       // Don't throw the error to avoid disrupting the car operation
     }
   }
 
-  async create(
-    createCarDto: CreateCarDto,
-    photos?: Express.Multer.File[]
-  ): Promise<CarDocument> {
+  async create(createCarDto: CreateCarDto, photos?: Express.Multer.File[]): Promise<CarDocument> {
     // Check if username exists and get user info
     let user: User;
     try {
       user = await this.usersService.findByUsername(createCarDto.username);
     } catch (error) {
       if (error instanceof NotFoundException) {
-        throw new NotFoundException(
-          `User ${createCarDto.username} does not exist`
-        );
+        throw new NotFoundException(`User ${createCarDto.username} does not exist`);
       }
       throw error;
     }
@@ -71,9 +60,7 @@ export class CarsService {
 
     // Get price information for the location
     const prices = await this.pricesService.findAll();
-    const priceForLocation = prices.find(
-      (p) => p.location === createCarDto.location
-    );
+    const priceForLocation = prices.find((p) => p.location === createCarDto.location);
 
     if (priceForLocation) {
       // Calculate transportation price
@@ -99,7 +86,7 @@ export class CarsService {
     const newCar = new this.carModel({
       ...createCarDto,
       carID: nextCarID,
-      status: "Purchased",
+      status: 'Purchased',
       transportationPrice,
       totalCost,
       photos: photos?.map((photo) => `/uploads/cars/${photo.filename}`) || [],
@@ -115,10 +102,7 @@ export class CarsService {
     return savedCar;
   }
 
-  async update(
-    carID: number,
-    updateCarDto: UpdateCarDto
-  ): Promise<CarDocument> {
+  async update(carID: number, updateCarDto: UpdateCarDto): Promise<CarDocument> {
     // Find the car by ID
     const car = await this.carModel.findOne({ carID }).exec();
     if (!car) {
@@ -129,31 +113,26 @@ export class CarsService {
     const updateData = { ...updateCarDto } as UpdateCarDto;
 
     // Ensure carID cannot be updated even if it's somehow included in the DTO
-    if ("carID" in updateData) {
+    if ('carID' in updateData) {
       delete (updateData as { carID?: number }).carID;
     }
 
     // Calculate new totalCost if either transportationPrice or auctionPrice is being updated
-    if (
-      updateData.transportationPrice !== undefined ||
-      updateData.auctionPrice !== undefined
-    ) {
-      const newTransportationPrice =
-        updateData.transportationPrice ?? car.transportationPrice;
+    if (updateData.transportationPrice !== undefined || updateData.auctionPrice !== undefined) {
+      const newTransportationPrice = updateData.transportationPrice ?? car.transportationPrice;
       const newAuctionPrice = updateData.auctionPrice ?? car.auctionPrice;
       updateData.totalCost = newTransportationPrice + newAuctionPrice;
     }
 
     // Check if status is being updated to 'Green'
-    const isStatusChangingToGreen =
-      updateData.status === "Green" && car.status !== "Green";
+    const isStatusChangingToGreen = updateData.status === 'Green' && car.status !== 'Green';
 
     // Update the car and return the updated document
     const updatedCar = await this.carModel
       .findOneAndUpdate(
         { carID },
         { $set: updateData as Partial<CarDocument> },
-        { new: true } // Return the updated document
+        { new: true }, // Return the updated document
       )
       .exec();
 
@@ -174,19 +153,17 @@ export class CarsService {
     if (isStatusChangingToGreen) {
       try {
         // Get the user to retrieve their phone number
-        const user = await this.usersService.findByUsername(
-          updatedCar.username
-        );
+        const user = await this.usersService.findByUsername(updatedCar.username);
 
         // Only send SMS if user has a phone number
         if (user.phoneNumber) {
           await this.smsService.sendSms(
             user.phoneNumber.toString(),
-            `თქვენი ავტომობილი (${updatedCar.carName}, VIN: ${updatedCar.vinCode}) გამწვანდა, შეგიძლიათ გაიყვანოთ.`
+            `თქვენი ავტომობილი (${updatedCar.carName}, VIN: ${updatedCar.vinCode}) გამწვანდა, შეგიძლიათ გაიყვანოთ.`,
           );
         }
       } catch (error) {
-        console.error("Failed to send status notification SMS:", error);
+        console.error('Failed to send status notification SMS:', error);
         // Don't throw the error to avoid disrupting the update operation
         // Just log it for monitoring
       }
@@ -197,7 +174,7 @@ export class CarsService {
 
   async findAll(
     filters?: CarFilters,
-    paginationOptions: PaginationOptions = { page: 1, limit: 25 }
+    paginationOptions: PaginationOptions = { page: 1, limit: 25 },
   ): Promise<{
     cars: CarDocument[];
     total: number;
@@ -208,16 +185,13 @@ export class CarsService {
     // Use a more specific type that matches MongoDB query structure
     const query: Record<string, any> = {};
     if (filters) {
-      if (filters.vinCode)
-        query.vinCode = { $regex: new RegExp(filters.vinCode, "i") };
+      if (filters.vinCode) query.vinCode = { $regex: new RegExp(filters.vinCode, 'i') };
       if (filters.containerNumber)
         query.containerNumber = {
-          $regex: new RegExp(filters.containerNumber, "i"),
+          $regex: new RegExp(filters.containerNumber, 'i'),
         };
-      if (filters.username)
-        query.username = { $regex: new RegExp(filters.username, "i") };
-      if (filters.status)
-        query.status = { $regex: new RegExp(filters.status, "i") };
+      if (filters.username) query.username = { $regex: new RegExp(filters.username, 'i') };
+      if (filters.status) query.status = { $regex: new RegExp(filters.status, 'i') };
       if (filters.dateOfPurchase) {
         query.dateOfPurchase = filters.dateOfPurchase;
       }

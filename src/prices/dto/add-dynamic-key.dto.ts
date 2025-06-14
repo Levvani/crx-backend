@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsNotEmpty } from "class-validator";
+import { IsString, IsNumber, IsNotEmpty } from 'class-validator';
 
 export class AddDynamicKeyDto {
   @IsString()

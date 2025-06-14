@@ -1,16 +1,12 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Damage, DamageDocument } from "./schemas/damages.schema";
-import { CreateDamageDto } from "./dto/create-damage.dto";
-import { UpdateDamageDto } from "./dto/update-damage.dto";
-import { UsersService } from "../users/users.service";
-import { CarsService } from "../cars/cars.service";
-import { StorageService } from "../config/storage.service";
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Damage, DamageDocument } from './schemas/damages.schema';
+import { CreateDamageDto } from './dto/create-damage.dto';
+import { UpdateDamageDto } from './dto/update-damage.dto';
+import { UsersService } from '../users/users.service';
+import { CarsService } from '../cars/cars.service';
+import { StorageService } from '../config/storage.service';
 
 @Injectable()
 export class DamagesService {
@@ -18,12 +14,12 @@ export class DamagesService {
     @InjectModel(Damage.name) private damageModel: Model<DamageDocument>,
     private usersService: UsersService,
     private carsService: CarsService,
-    private storageService: StorageService
+    private storageService: StorageService,
   ) {}
 
   async create(
     createDamageDto: CreateDamageDto,
-    files?: Express.Multer.File[]
+    files?: Express.Multer.File[],
   ): Promise<DamageDocument> {
     let username = createDamageDto.username;
     let vinCode = createDamageDto.vinCode;
@@ -37,9 +33,7 @@ export class DamagesService {
         vinCode = car.vinCode;
       } catch (error) {
         if (error instanceof NotFoundException) {
-          throw new BadRequestException(
-            `Car with ID ${createDamageDto.carID} not found`
-          );
+          throw new BadRequestException(`Car with ID ${createDamageDto.carID} not found`);
         }
         throw error;
       }
@@ -56,10 +50,7 @@ export class DamagesService {
     }
 
     // Find the highest damageID in the database
-    const highestDamage = await this.damageModel
-      .findOne()
-      .sort({ damageID: -1 })
-      .exec();
+    const highestDamage = await this.damageModel.findOne().sort({ damageID: -1 }).exec();
     const nextDamageID = highestDamage ? highestDamage.damageID + 1 : 1;
 
     // Upload files to GCS if provided
@@ -69,9 +60,7 @@ export class DamagesService {
     if (files && files.length > 0) {
       try {
         // Process each file and get URLs
-        const uploadPromises = files.map((file) =>
-          this.storageService.uploadFile(file)
-        );
+        const uploadPromises = files.map((file) => this.storageService.uploadFile(file));
         const uploadedUrls = await Promise.all(uploadPromises);
 
         // Store all URLs
@@ -82,12 +71,9 @@ export class DamagesService {
           imageUrl = uploadedUrls[0];
         }
       } catch (error) {
-        console.error("Error uploading files:", error);
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        throw new BadRequestException(
-          `Failed to upload images: ${errorMessage}`
-        );
+        console.error('Error uploading files:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new BadRequestException(`Failed to upload images: ${errorMessage}`);
       }
     }
 
@@ -102,7 +88,7 @@ export class DamagesService {
     });
 
     // Log the values before saving
-    console.log("Creating damage with:", {
+    console.log('Creating damage with:', {
       imageUrl,
       imageUrls,
       filesCount: files?.length,
@@ -114,10 +100,7 @@ export class DamagesService {
   async findAll(username?: string): Promise<DamageDocument[]> {
     // If username is provided, filter by username (for dealers)
     const query = username ? { username } : {};
-    const damages = await this.damageModel
-      .find(query)
-      .sort({ createdAt: -1 })
-      .exec();
+    const damages = await this.damageModel.find(query).sort({ createdAt: -1 }).exec();
 
     // Enhance damages with vinCode from cars (if missing)
     const enhancedDamages = await Promise.all(
@@ -138,14 +121,11 @@ export class DamagesService {
           await damage.save();
         } catch (error) {
           // If car not found or other error, continue without vinCode
-          console.error(
-            `Could not retrieve vinCode for damage ${damage.damageID}:`,
-            error.message
-          );
+          console.error(`Could not retrieve vinCode for damage ${damage.damageID}:`, error.message);
         }
 
         return damage;
-      })
+      }),
     );
 
     return enhancedDamages;
@@ -165,20 +145,14 @@ export class DamagesService {
         await damage.save();
       } catch (error) {
         // If car not found or other error, continue without vinCode
-        console.error(
-          `Could not retrieve vinCode for damage ${damageID}:`,
-          error
-        );
+        console.error(`Could not retrieve vinCode for damage ${damageID}:`, error);
       }
     }
 
     return damage;
   }
 
-  async update(
-    damageID: number,
-    updateDamageDto: UpdateDamageDto
-  ): Promise<DamageDocument> {
+  async update(damageID: number, updateDamageDto: UpdateDamageDto): Promise<DamageDocument> {
     // Find the damage by ID
     const damage = await this.findOne(damageID);
 
@@ -194,7 +168,7 @@ export class DamagesService {
       .findOneAndUpdate(
         { damageID },
         { $set: updateData },
-        { new: true } // Return the updated document
+        { new: true }, // Return the updated document
       )
       .exec();
   }

@@ -1,11 +1,4 @@
-import {
-  IsNotEmpty,
-  IsNumber,
-  IsString,
-  Min,
-  IsOptional,
-  IsBoolean,
-} from "class-validator";
+import { IsNotEmpty, IsNumber, IsString, Min, IsOptional, IsBoolean } from 'class-validator';
 
 export class CreateCarDto {
   @IsOptional()

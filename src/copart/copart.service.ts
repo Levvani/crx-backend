@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import { chromium, Browser, Page } from "playwright";
+import { Injectable } from '@nestjs/common';
+import { chromium, Browser, Page } from 'playwright';
 
 @Injectable()
 export class CopartService {
@@ -29,20 +29,17 @@ export class CopartService {
       if (rawData) {
         try {
           jsonData = JSON.parse(rawData) as Record<string, unknown>;
-          console.log("Parsed JSON data type:", typeof jsonData);
+          console.log('Parsed JSON data type:', typeof jsonData);
         } catch (parseError) {
-          console.error("Error parsing JSON:", parseError);
+          console.error('Error parsing JSON:', parseError);
           // Try to extract valid JSON from the string if it contains extra text
           const jsonMatch = rawData.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             try {
               jsonData = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
-              console.log(
-                "Extracted and parsed JSON data type:",
-                typeof jsonData
-              );
+              console.log('Extracted and parsed JSON data type:', typeof jsonData);
             } catch (extractError) {
-              console.error("Error parsing extracted JSON:", extractError);
+              console.error('Error parsing extracted JSON:', extractError);
             }
           }
         }
@@ -54,9 +51,8 @@ export class CopartService {
 
       return jsonData as Record<string, unknown> | string; // Return typed JSON if parsing succeeded, otherwise return the raw string
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      console.error("Error fetching car details:", errorMessage);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Error fetching car details:', errorMessage);
       throw new Error(`Failed to fetch car details: ${errorMessage}`);
     } finally {
       if (page) {

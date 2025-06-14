@@ -1,16 +1,12 @@
 // src/auth/auth.service.ts
-import {
-  Injectable,
-  BadRequestException,
-  UnauthorizedException,
-} from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
-import { UsersService } from "../users/users.service";
-import { JwtPayload } from "./interfaces/jwt-payload.interface";
-import { User, UserRole } from "../users/schemas/user.schema";
-import { ConfigService } from "@nestjs/config";
-import { Response } from "express";
+import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { UsersService } from '../users/users.service';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { User, UserRole } from '../users/schemas/user.schema';
+import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
 
 // Define the interface for the user object as received from the JWT strategy
 interface JwtUser {
@@ -31,13 +27,10 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-    private configService: ConfigService
+    private configService: ConfigService,
   ) {}
 
-  async validateUser(
-    username: string,
-    password: string
-  ): Promise<Partial<User> | null> {
+  async validateUser(username: string, password: string): Promise<Partial<User> | null> {
     try {
       const user = await this.usersService.findByUsername(username);
       const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -57,9 +50,9 @@ export class AuthService {
 
   // In the AuthService class, update the login method
   async login(user: JwtUser, response: Response) {
-    console.log("=== Login Debug ===");
-    console.log("1. Environment:", process.env.NODE_ENV);
-    console.log("2. Frontend URL:", process.env.FRONTEND_URL);
+    console.log('=== Login Debug ===');
+    console.log('1. Environment:', process.env.NODE_ENV);
+    console.log('2. Frontend URL:', process.env.FRONTEND_URL);
 
     const payload: JwtPayload = {
       username: user.username,
@@ -78,10 +71,10 @@ export class AuthService {
     // Set refresh token as HTTP-only cookie
     this.setRefreshTokenCookie(response, refreshToken);
 
-    console.log("3. Cookie set with options:", {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/auth/refresh",
+    console.log('3. Cookie set with options:', {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/auth/refresh',
     });
 
     return {
@@ -104,23 +97,23 @@ export class AuthService {
   private setRefreshTokenCookie(response: Response, token: string) {
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict" as const,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict' as const,
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/auth/refresh",
+      path: '/auth/refresh',
     };
 
-    console.log("Setting cookie with options:", cookieOptions);
-    response.cookie("refresh_token", token, cookieOptions);
+    console.log('Setting cookie with options:', cookieOptions);
+    response.cookie('refresh_token', token, cookieOptions);
   }
 
   // Update the refreshTokens method to use cookies
   async refreshTokens(refreshToken: string, response: Response) {
     try {
       // Verify the refresh token
-      const secret = this.configService.get<string>("JWT_SECRET");
+      const secret = this.configService.get<string>('JWT_SECRET');
       if (!secret) {
-        throw new Error("JWT_SECRET is not defined in configuration");
+        throw new Error('JWT_SECRET is not defined in configuration');
       }
 
       const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
@@ -131,7 +124,7 @@ export class AuthService {
       const isTokenValid = user.refreshTokens?.includes(refreshToken);
 
       if (!isTokenValid) {
-        throw new UnauthorizedException("Invalid refresh token");
+        throw new UnauthorizedException('Invalid refresh token');
       }
 
       // Generate new tokens (token rotation for security)
@@ -149,7 +142,7 @@ export class AuthService {
         access_token: newAccessToken,
       };
     } catch {
-      throw new UnauthorizedException("Invalid refresh token");
+      throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
@@ -159,11 +152,11 @@ export class AuthService {
     await this.usersService.removeRefreshToken(userId, refreshToken);
 
     // Clear the refresh token cookie
-    response.clearCookie("refresh_token", {
+    response.clearCookie('refresh_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/auth/refresh",
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/auth/refresh',
     });
   }
 
@@ -173,26 +166,23 @@ export class AuthService {
 
   generateRefreshToken(payload: JwtPayload): string {
     return this.jwtService.sign(payload, {
-      secret: this.configService.get<string>("JWT_SECRET"),
-      expiresIn: "7d", // Refresh token lasts longer than access token
+      secret: this.configService.get<string>('JWT_SECRET'),
+      expiresIn: '7d', // Refresh token lasts longer than access token
     });
   }
 
   async changePassword(
     userID: number,
     currentPassword: string,
-    newPassword: string
+    newPassword: string,
   ): Promise<void> {
     // Find the user
     const user = await this.usersService.findById(userID);
 
     // Verify current password
-    const isPasswordValid = await bcrypt.compare(
-      currentPassword,
-      user.password
-    );
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
-      throw new BadRequestException("Current password is incorrect");
+      throw new BadRequestException('Current password is incorrect');
     }
 
     // Hash the new password

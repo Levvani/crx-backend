@@ -11,19 +11,19 @@ import {
   Req,
   Res,
   UnauthorizedException,
-} from "@nestjs/common";
-import { AuthGuard } from "@nestjs/passport";
-import { AuthService } from "./auth.service";
-import { UsersService } from "../users/users.service";
-import { CreateUserDto } from "../users/dto/create-user.dto";
-import { Public } from "./decorators/public.decorator";
-import { ChangePasswordDto } from "./dto/change-password.dto";
-import { Request as ExpressRequest, Response } from "express";
-import { UserRole } from "../users/schemas/user.schema";
-import { User } from "../users/schemas/user.schema";
-import { RolesGuard } from "./guards/roles.guard";
-import { JwtAuthGuard } from "./guards/jwt-auth.guard";
-import { Roles } from "./decorators/roles.decorator";
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { AuthService } from './auth.service';
+import { UsersService } from '../users/users.service';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { Public } from './decorators/public.decorator';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { Request as ExpressRequest, Response } from 'express';
+import { UserRole } from '../users/schemas/user.schema';
+import { User } from '../users/schemas/user.schema';
+import { RolesGuard } from './guards/roles.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Roles } from './decorators/roles.decorator';
 
 // Define the JWT payload type returned by the JWT strategy
 interface JwtUser {
@@ -41,21 +41,21 @@ interface RequestWithUser extends ExpressRequest {
   user: JwtUser;
 }
 
-@Controller("auth")
+@Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
-    private usersService: UsersService
+    private usersService: UsersService,
   ) {}
 
-  @Post("register")
+  @Post('register')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   async register(@Body() createUserDto: CreateUserDto) {
     try {
-      console.log("Registration request received:", {
+      console.log('Registration request received:', {
         ...createUserDto,
-        password: "[REDACTED]",
+        password: '[REDACTED]',
       });
 
       const user = await this.usersService.create(createUserDto);
@@ -65,18 +65,15 @@ export class AuthController {
       const { password, ...result } = user.toObject() as User;
       return result;
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error('Registration error:', error);
       throw error;
     }
   }
 
   @Public()
-  @UseGuards(AuthGuard("local"))
-  @Post("login")
-  async login(
-    @Request() req: RequestWithUser,
-    @Res({ passthrough: true }) response: Response
-  ) {
+  @UseGuards(AuthGuard('local'))
+  @Post('login')
+  async login(@Request() req: RequestWithUser, @Res({ passthrough: true }) response: Response) {
     // Get the complete user data from the database
     const user = await this.usersService.findByUsername(req.user.username);
 
@@ -95,52 +92,52 @@ export class AuthController {
     return this.authService.login(userWithAdditionalInfo, response);
   }
 
-  @UseGuards(AuthGuard("jwt"))
-  @Get("profile")
+  @UseGuards(AuthGuard('jwt'))
+  @Get('profile')
   getProfile(@Request() req: RequestWithUser) {
     return req.user;
   }
 
   @Public()
-  @Post("refresh")
+  @Post('refresh')
   async refreshTokens(
     @Req() request: ExpressRequest,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
   ) {
     const refreshToken = request.cookies?.refresh_token as string;
     if (!refreshToken) {
-      throw new UnauthorizedException("Refresh token not found");
+      throw new UnauthorizedException('Refresh token not found');
     }
     return this.authService.refreshTokens(refreshToken, response);
   }
 
-  @Post("logout")
+  @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(
     @Request() req: RequestWithUser,
     @Req() request: ExpressRequest,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
   ) {
     // For the cookies error
     const refreshToken = request.cookies?.refresh_token as string;
     if (refreshToken) {
       await this.authService.logout(req.user.userID, refreshToken, response);
     }
-    return { message: "Logged out successfully" };
+    return { message: 'Logged out successfully' };
   }
 
-  @Post("change-password")
+  @Post('change-password')
   @HttpCode(HttpStatus.OK)
   async changePassword(
     @Request() req: RequestWithUser,
-    @Body() changePasswordDto: ChangePasswordDto
+    @Body() changePasswordDto: ChangePasswordDto,
   ) {
-    console.log("CHANGE PASSWORD - ", req.user);
+    console.log('CHANGE PASSWORD - ', req.user);
     await this.authService.changePassword(
       req.user.userID,
       changePasswordDto.currentPassword,
-      changePasswordDto.newPassword
+      changePasswordDto.newPassword,
     );
-    return { message: "Password changed successfully" };
+    return { message: 'Password changed successfully' };
   }
 }

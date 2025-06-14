@@ -1,36 +1,28 @@
 // src/users/users.controller.ts
-import {
-  Controller,
-  Get,
-  Param,
-  UseGuards,
-  Put,
-  Body,
-  Query,
-} from "@nestjs/common";
-import { AuthGuard } from "@nestjs/passport";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { Roles } from "../auth/decorators/roles.decorator";
-import { UsersService } from "./users.service";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { User, UserDocument, UserRole } from "./schemas/user.schema";
-import { NotFoundException } from "@nestjs/common";
-import { PaginationDto } from "./dto/pagination.dto";
-import { UpdateUserDto } from "./dto/update-user.dto";
+import { Controller, Get, Param, UseGuards, Put, Body, Query } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UsersService } from './users.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument, UserRole } from './schemas/user.schema';
+import { NotFoundException } from '@nestjs/common';
+import { PaginationDto } from './dto/pagination.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
-@Controller("users")
-@UseGuards(AuthGuard("jwt"), RolesGuard)
+@Controller('users')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class UsersController {
   constructor(
     private usersService: UsersService,
-    @InjectModel(User.name) private userModel: Model<UserDocument>
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   @Get()
   @Roles(UserRole.ADMIN)
   async findAll(@Query() paginationDto: PaginationDto) {
-    console.log("Received query parameters:", paginationDto);
+    console.log('Received query parameters:', paginationDto);
 
     const result = await this.usersService.findAll({
       page: paginationDto.page,
@@ -56,11 +48,11 @@ export class UsersController {
     };
   }
 
-  @Get("dealers") // This specific route MUST come before the parameterized route
+  @Get('dealers') // This specific route MUST come before the parameterized route
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async findDealers(@Query() paginationDto: PaginationDto) {
     try {
-      console.log("Fetching dealers with parameters:", paginationDto);
+      console.log('Fetching dealers with parameters:', paginationDto);
 
       // Use the dedicated dealers method
       const result = await this.usersService.findDealers({
@@ -88,15 +80,15 @@ export class UsersController {
         limit: result.limit,
       };
     } catch (error) {
-      console.error("Error in findDealers:", error);
+      console.error('Error in findDealers:', error);
       // Instead of throwing the error directly, return a proper error response
-      throw new Error("Internal server error while fetching dealers");
+      throw new Error('Internal server error while fetching dealers');
     }
   }
 
-  @Get(":id")
+  @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.ACCOUNTANT)
-  async findOne(@Param("id") id: number) {
+  async findOne(@Param('id') id: number) {
     try {
       const user = await this.usersService.findById(id);
       if (!user) {
@@ -111,12 +103,9 @@ export class UsersController {
     }
   }
 
-  @Put(":id")
+  @Put(':id')
   @Roles(UserRole.ADMIN)
-  async updateUser(
-    @Param("id") id: number,
-    @Body() updateUserDto: UpdateUserDto
-  ) {
+  async updateUser(@Param('id') id: number, @Body() updateUserDto: UpdateUserDto) {
     const user = await this.usersService.update(id, updateUserDto);
     // Remove password from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

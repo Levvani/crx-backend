@@ -1,8 +1,8 @@
-import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { FileEntry, FileEntryDocument } from "../schemas/file-entry.schema";
-import { FileEntryDto } from "../file-upload.service";
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { FileEntry, FileEntryDocument } from '../schemas/file-entry.schema';
+import { FileEntryDto } from '../file-upload.service';
 
 @Injectable()
 export class FileEntryRepository {
@@ -29,7 +29,7 @@ export class FileEntryRepository {
       }
       return [];
     } catch (error) {
-      console.error("Error saving file entries to database:", error.message);
+      console.error('Error saving file entries to database:', error.message);
       throw error;
     }
   }
