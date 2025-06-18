@@ -30,6 +30,8 @@ interface JwtUser {
 
 @Injectable()
 export class AuthService implements OnModuleInit {
+  private tokenBlacklist: Set<string> = new Set();
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -45,7 +47,7 @@ export class AuthService implements OnModuleInit {
   async cleanupExpiredTokens() {
     try {
       await this.usersService.cleanupExpiredTokens();
-    } catch (error) {
+    } catch {
       // Error during token cleanup - no need to log in production
     }
   }
@@ -150,8 +152,9 @@ export class AuthService implements OnModuleInit {
           throw new UnauthorizedException('Invalid refresh token');
         }
 
-        // Generate new tokens
-        const { exp, iat, ...payloadWithoutTimestamps } = payload;
+        // Generate new tokens - omit exp and iat from payload
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { exp: _, iat: __, ...payloadWithoutTimestamps } = payload;
         const newAccessToken = this.generateAccessToken(payloadWithoutTimestamps);
         const newRefreshToken = this.generateRefreshToken(payloadWithoutTimestamps);
 
@@ -176,15 +179,37 @@ export class AuthService implements OnModuleInit {
         }
         throw new UnauthorizedException('Invalid refresh token');
       }
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
-  // Update the logout method to clear the cookie
-  async logout(userId: number, refreshToken: string, response: Response) {
+  // Update the logout method to handle access token blacklisting
+  async logout(userId: number, refreshToken: string, response: Response, accessToken?: string) {
     // Remove the refresh token from the user's document
     await this.usersService.removeRefreshToken(userId, refreshToken);
+
+    // Add the access token to the blacklist if provided
+    if (accessToken) {
+      try {
+        interface JwtToken {
+          exp: number;
+          [key: string]: any;
+        }
+
+        const decoded = this.jwtService.verify<JwtToken>(accessToken);
+        const remainingTime = decoded.exp - Math.floor(Date.now() / 1000);
+        if (remainingTime > 0) {
+          this.tokenBlacklist.add(accessToken);
+          // Remove from blacklist after token expires
+          setTimeout(() => {
+            this.tokenBlacklist.delete(accessToken);
+          }, remainingTime * 1000);
+        }
+      } catch {
+        // Token is invalid or expired, no need to blacklist
+      }
+    }
 
     // Clear the refresh token cookie
     response.clearCookie('refresh_token', {
@@ -193,6 +218,11 @@ export class AuthService implements OnModuleInit {
       sameSite: 'strict',
       path: '/auth/refresh',
     });
+  }
+
+  // Add method to check if a token is blacklisted
+  isTokenBlacklisted(token: string): boolean {
+    return this.tokenBlacklist.has(token);
   }
 
   generateAccessToken(payload: JwtPayload): string {

@@ -6,6 +6,7 @@ import { Car, CarSchema } from './schemas/car.schema';
 import { UsersModule } from '../users/users.module';
 import { SmsModule } from '../sms/sms.module';
 import { PricesModule } from '../prices/prices.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { PricesModule } from '../prices/prices.module';
     UsersModule,
     SmsModule,
     PricesModule,
+    AuthModule,
   ],
   controllers: [CarsController],
   providers: [CarsService],

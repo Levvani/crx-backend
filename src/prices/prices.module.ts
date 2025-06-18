@@ -4,6 +4,7 @@ import { PricesService } from './prices.service';
 import { PricesController } from './prices.controller';
 import { Price, PriceSchema } from './schemas/price.schema';
 import { DealerType, DealerTypeSchema } from './schemas/dealer-type.schema';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { DealerType, DealerTypeSchema } from './schemas/dealer-type.schema';
       { name: Price.name, schema: PriceSchema },
       { name: DealerType.name, schema: DealerTypeSchema },
     ]),
+    AuthModule,
   ],
   controllers: [PricesController],
   providers: [PricesService],

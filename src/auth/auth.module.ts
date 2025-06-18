@@ -9,6 +9,8 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthController } from './auth.controller';
 import { ScheduleModule } from '@nestjs/schedule';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -33,7 +35,15 @@ import { ScheduleModule } from '@nestjs/schedule';
       },
     }),
   ] as Array<DynamicModule>,
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [
+    AuthService,
+    LocalStrategy,
+    JwtStrategy,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
   controllers: [AuthController],
   exports: [AuthService],
 })

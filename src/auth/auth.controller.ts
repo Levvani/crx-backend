@@ -111,10 +111,11 @@ export class AuthController {
     @Req() request: ExpressRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
-    // For the cookies error
     const refreshToken = request.cookies?.refresh_token as string;
+    const accessToken = request.headers.authorization?.split(' ')[1];
+
     if (refreshToken) {
-      await this.authService.logout(req.user.userID, refreshToken, response);
+      await this.authService.logout(req.user.userID, refreshToken, response, accessToken);
     }
     return { message: 'Logged out successfully' };
   }

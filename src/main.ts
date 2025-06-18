@@ -3,7 +3,6 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import * as cookieParser from 'cookie-parser';
@@ -38,7 +37,6 @@ async function bootstrap() {
     );
 
     const reflector = app.get(Reflector);
-    app.useGlobalGuards(new JwtAuthGuard(reflector));
     app.useGlobalGuards(new RolesGuard(reflector));
 
     const port = process.env.PORT || 3000;

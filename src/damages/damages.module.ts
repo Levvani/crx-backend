@@ -6,6 +6,7 @@ import { Damage, DamageSchema } from './schemas/damages.schema';
 import { UsersModule } from 'src/users/users.module';
 import { CarsModule } from 'src/cars/cars.module';
 import { StorageModule } from 'src/config/storage.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { StorageModule } from 'src/config/storage.module';
     UsersModule,
     CarsModule,
     StorageModule,
+    AuthModule,
   ],
   controllers: [DamagesController],
   providers: [DamagesService],
