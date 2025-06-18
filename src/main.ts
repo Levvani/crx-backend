@@ -6,23 +6,22 @@ import { AppModule } from './app.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
-
-// Add this import at the top
 import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // Add this line to enable cookie parsing
-  app.use(cookieParser());
-
   const logger = new Logger('Bootstrap');
+
   try {
     logger.log('Initializing NestJS application...');
     const app = await NestFactory.create(AppModule);
+
+    // Add cookie parser middleware FIRST
+    logger.log('Setting up cookie parser...');
+    app.use(cookieParser());
+
     // Configure CORS
     const corsOptions: CorsOptions = {
-      origin: [process.env.FRONTEND_URL, 'http://localhost:4200'].filter(Boolean), // This removes any undefined values
+      origin: [process.env.FRONTEND_URL, 'http://localhost:4200'].filter(Boolean),
       credentials: true,
     };
     logger.log('Configuring CORS...');

@@ -1,5 +1,10 @@
 // src/auth/auth.service.ts
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
@@ -7,6 +12,7 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { User, UserRole } from '../users/schemas/user.schema';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
+import { Cron } from '@nestjs/schedule';
 
 // Define the interface for the user object as received from the JWT strategy
 interface JwtUser {
@@ -23,12 +29,26 @@ interface JwtUser {
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
+
+  async onModuleInit() {
+    // Clean up expired tokens on startup
+    await this.cleanupExpiredTokens();
+  }
+
+  @Cron('0 0 * * *') // Run at midnight every day
+  async cleanupExpiredTokens() {
+    try {
+      await this.usersService.cleanupExpiredTokens();
+    } catch (error) {
+      // Error during token cleanup - no need to log in production
+    }
+  }
 
   async validateUser(username: string, password: string): Promise<Partial<User> | null> {
     try {
@@ -50,15 +70,11 @@ export class AuthService {
 
   // In the AuthService class, update the login method
   async login(user: JwtUser, response: Response) {
-    console.log('=== Login Debug ===');
-    console.log('1. Environment:', process.env.NODE_ENV);
-    console.log('2. Frontend URL:', process.env.FRONTEND_URL);
-
     const payload: JwtPayload = {
-      username: user.username,
       sub: user.userID,
+      username: user.username,
       role: user.role,
-      level: user.level,
+      level: user.level || null,
     };
 
     // Generate tokens
@@ -68,14 +84,16 @@ export class AuthService {
     // Save refresh token to user document
     await this.usersService.addRefreshToken(user.userID, refreshToken);
 
-    // Set refresh token as HTTP-only cookie
-    this.setRefreshTokenCookie(response, refreshToken);
+    // Set refresh token as HTTP-only cookie with more permissive settings for testing
+    const cookieOptions = {
+      httpOnly: true,
+      secure: false, // Set to false for local testing
+      sameSite: 'lax' as const, // Changed from 'strict' to 'lax' for testing
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/', // Changed from '/auth/refresh' to '/' for testing
+    };
 
-    console.log('3. Cookie set with options:', {
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/auth/refresh',
-    });
+    response.cookie('refresh_token', refreshToken, cookieOptions);
 
     return {
       access_token: accessToken,
@@ -103,45 +121,62 @@ export class AuthService {
       path: '/auth/refresh',
     };
 
-    console.log('Setting cookie with options:', cookieOptions);
     response.cookie('refresh_token', token, cookieOptions);
   }
 
-  // Update the refreshTokens method to use cookies
+  // Update the refreshTokens method to handle the new token structure
   async refreshTokens(refreshToken: string, response: Response) {
     try {
-      // Verify the refresh token
       const secret = this.configService.get<string>('JWT_SECRET');
+
       if (!secret) {
         throw new Error('JWT_SECRET is not defined in configuration');
       }
 
-      const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
-        secret,
-      });
-      // Check if user exists and token is in their refresh tokens
-      const user = await this.usersService.findById(payload.sub);
-      const isTokenValid = user.refreshTokens?.includes(refreshToken);
+      try {
+        const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+          secret,
+        });
 
-      if (!isTokenValid) {
+        // Check if user exists and token is in their refresh tokens
+        const user = await this.usersService.findById(payload.sub);
+        if (!user) {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        const isTokenValid = user.refreshTokens?.some((t) => t && t.token === refreshToken);
+
+        if (!isTokenValid) {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        // Generate new tokens
+        const { exp, iat, ...payloadWithoutTimestamps } = payload;
+        const newAccessToken = this.generateAccessToken(payloadWithoutTimestamps);
+        const newRefreshToken = this.generateRefreshToken(payloadWithoutTimestamps);
+
+        // Remove old refresh token and add new one
+        await this.usersService.removeRefreshToken(payload.sub, refreshToken);
+        await this.usersService.addRefreshToken(payload.sub, newRefreshToken);
+
+        // Set the new refresh token as an HTTP-only cookie
+        this.setRefreshTokenCookie(response, newRefreshToken);
+
+        return {
+          access_token: newAccessToken,
+        };
+      } catch (verifyError) {
+        if (verifyError instanceof Error) {
+          if (
+            verifyError.name === 'JsonWebTokenError' ||
+            verifyError.name === 'TokenExpiredError'
+          ) {
+            throw new UnauthorizedException('Invalid refresh token');
+          }
+        }
         throw new UnauthorizedException('Invalid refresh token');
       }
-
-      // Generate new tokens (token rotation for security)
-      const newAccessToken = this.generateAccessToken(payload);
-      const newRefreshToken = this.generateRefreshToken(payload);
-
-      // Remove old refresh token and add new one
-      await this.usersService.removeRefreshToken(payload.sub, refreshToken);
-      await this.usersService.addRefreshToken(payload.sub, newRefreshToken);
-
-      // Set the new refresh token as an HTTP-only cookie
-      this.setRefreshTokenCookie(response, newRefreshToken);
-
-      return {
-        access_token: newAccessToken,
-      };
-    } catch {
+    } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }

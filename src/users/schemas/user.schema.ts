@@ -9,6 +9,11 @@ export enum UserRole {
   DEALER = 'dealer',
 }
 
+export interface RefreshToken {
+  token: string;
+  expiresAt: Date;
+}
+
 export type UserDocument = User & Document;
 
 @Schema()
@@ -52,8 +57,27 @@ export class User {
   @Prop({ default: Date.now })
   createdAt: Date;
 
-  @Prop({ type: [String], default: [] })
-  refreshTokens: string[];
+  @Prop({
+    type: [
+      {
+        token: String,
+        expiresAt: Date,
+      },
+    ],
+    default: [],
+    validate: [
+      {
+        validator: function (tokens: RefreshToken[]) {
+          return tokens.length <= 5; // Maximum 5 refresh tokens per user
+        },
+        message: 'Maximum number of refresh tokens exceeded',
+      },
+    ],
+  })
+  refreshTokens: RefreshToken[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+// Add TTL index on expiresAt field
+UserSchema.index({ 'refreshTokens.expiresAt': 1 }, { expireAfterSeconds: 0 });

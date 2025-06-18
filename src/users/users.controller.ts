@@ -22,8 +22,6 @@ export class UsersController {
   @Get()
   @Roles(UserRole.ADMIN)
   async findAll(@Query() paginationDto: PaginationDto) {
-    console.log('Received query parameters:', paginationDto);
-
     const result = await this.usersService.findAll({
       page: paginationDto.page,
       limit: paginationDto.limit,
@@ -51,56 +49,43 @@ export class UsersController {
   @Get('dealers') // This specific route MUST come before the parameterized route
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async findDealers(@Query() paginationDto: PaginationDto) {
-    try {
-      console.log('Fetching dealers with parameters:', paginationDto);
+    // Use the dedicated dealers method
+    const result = await this.usersService.findDealers({
+      page: paginationDto.page,
+      limit: paginationDto.limit,
+      level: paginationDto.level,
+      search: paginationDto.search,
+    });
 
-      // Use the dedicated dealers method
-      const result = await this.usersService.findDealers({
-        page: paginationDto.page,
-        limit: paginationDto.limit,
-        level: paginationDto.level,
-        search: paginationDto.search,
-      });
+    // Remove password from each user - with safer conversion
+    const usersWithoutPassword = result.users.map((user) => {
+      // Check if user is a Mongoose document or plain object
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const userObj = user.toObject ? user.toObject() : user;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...userData } = userObj as User;
+      return userData;
+    });
 
-      // Remove password from each user - with safer conversion
-      const usersWithoutPassword = result.users.map((user) => {
-        // Check if user is a Mongoose document or plain object
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const userObj = user.toObject ? user.toObject() : user;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password, ...userData } = userObj as User;
-        return userData;
-      });
-
-      return {
-        users: usersWithoutPassword,
-        total: result.total,
-        totalPages: result.totalPages,
-        page: result.page,
-        limit: result.limit,
-      };
-    } catch (error) {
-      console.error('Error in findDealers:', error);
-      // Instead of throwing the error directly, return a proper error response
-      throw new Error('Internal server error while fetching dealers');
-    }
+    return {
+      users: usersWithoutPassword,
+      total: result.total,
+      totalPages: result.totalPages,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.ACCOUNTANT)
   async findOne(@Param('id') id: number) {
-    try {
-      const user = await this.usersService.findById(id);
-      if (!user) {
-        throw new NotFoundException(`User with ID ${id} not found`);
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...result } = user.toObject() as User;
-      return result;
-    } catch (error) {
-      console.error(`Error finding user with id ${id}:`, error);
-      throw error;
+    const user = await this.usersService.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user.toObject() as User;
+    return result;
   }
 
   @Put(':id')

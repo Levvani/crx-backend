@@ -1,5 +1,5 @@
 // src/auth/auth.module.ts
-import { Module } from '@nestjs/common';
+import { Module, DynamicModule } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -8,27 +8,31 @@ import { AuthService } from './auth.service';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthController } from './auth.controller';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule,
     UsersModule,
-    PassportModule,
+    PassportModule.register({}),
+    ScheduleModule.forRoot(),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => {
-        const expirationMs = configService.get<number>('JWT_EXPIRATION');
-        // Convert milliseconds to seconds for JWT library
-        const expirationSec = Math.floor(expirationMs / 1000);
-
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => {
+        const secret = await Promise.resolve(configService.get<string>('JWT_SECRET'));
+        if (!secret) {
+          throw new Error('JWT_SECRET is not defined');
+        }
         return {
-          secret: configService.get<string>('JWT_SECRET'),
-          signOptions: { expiresIn: expirationSec },
+          secret,
+          signOptions: {
+            expiresIn: '15m',
+          },
         };
       },
-      inject: [ConfigService],
     }),
-  ],
+  ] as Array<DynamicModule>,
   providers: [AuthService, LocalStrategy, JwtStrategy],
   controllers: [AuthController],
   exports: [AuthService],

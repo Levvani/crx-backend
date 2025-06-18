@@ -52,22 +52,12 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   async register(@Body() createUserDto: CreateUserDto) {
-    try {
-      console.log('Registration request received:', {
-        ...createUserDto,
-        password: '[REDACTED]',
-      });
+    const user = await this.usersService.create(createUserDto);
 
-      const user = await this.usersService.create(createUserDto);
-
-      // Return everything except the password
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...result } = user.toObject() as User;
-      return result;
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
+    // Return everything except the password
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user.toObject() as User;
+    return result;
   }
 
   @Public()
@@ -105,10 +95,13 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const refreshToken = request.cookies?.refresh_token as string;
+
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
-    return this.authService.refreshTokens(refreshToken, response);
+
+    const result = await this.authService.refreshTokens(refreshToken, response);
+    return result;
   }
 
   @Post('logout')
@@ -132,7 +125,6 @@ export class AuthController {
     @Request() req: RequestWithUser,
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
-    console.log('CHANGE PASSWORD - ', req.user);
     await this.authService.changePassword(
       req.user.userID,
       changePasswordDto.currentPassword,

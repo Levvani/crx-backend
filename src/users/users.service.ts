@@ -25,62 +25,52 @@ export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
-    try {
-      // Check if user already exists
-      const existingUser = await this.userModel.findOne({
-        $or: [{ username: createUserDto.username }, { email: createUserDto.email }],
-      });
+    // Check if user already exists
+    const existingUser = await this.userModel.findOne({
+      $or: [{ username: createUserDto.username }, { email: createUserDto.email }],
+    });
 
-      if (existingUser) {
-        throw new ConflictException('Username or email already exists');
-      }
-
-      // Hash the password
-      const salt = await bcrypt.genSalt();
-      const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
-
-      // Find the highest userID in the database
-      const highestUser = await this.userModel.findOne().sort({ userID: -1 }).exec();
-
-      // Ensure we have a valid numeric userID
-      let nextUserID = 1; // Default to 1 if no users exist
-      if (highestUser && typeof highestUser.userID === 'number' && !isNaN(highestUser.userID)) {
-        nextUserID = highestUser.userID + 1;
-      }
-
-      // If userID was provided in the DTO and it's valid, use it
-      if (createUserDto.userID !== undefined) {
-        if (typeof createUserDto.userID !== 'number' || isNaN(createUserDto.userID)) {
-          throw new BadRequestException('userID must be a valid number');
-        }
-        nextUserID = createUserDto.userID;
-      }
-
-      // Create new user with explicit properties rather than spreading
-      const newUser = new this.userModel({
-        userID: nextUserID,
-        username: createUserDto.username,
-        firstname: createUserDto.firstname,
-        lastname: createUserDto.lastname,
-        password: hashedPassword,
-        email: createUserDto.email,
-        role: createUserDto.role || UserRole.DEALER,
-        level: createUserDto.level || 'A',
-        totalBalance: createUserDto.totalBalance || 0,
-        profitBalance: createUserDto.profitBalance || 0,
-        phoneNumber: createUserDto.phoneNumber || null,
-      });
-
-      console.log('Attempting to save user:', {
-        ...newUser.toObject(),
-        password: '[REDACTED]',
-      });
-
-      return await newUser.save();
-    } catch (error) {
-      console.error('Error creating user:', error);
-      throw error;
+    if (existingUser) {
+      throw new ConflictException('Username or email already exists');
     }
+
+    // Hash the password
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
+
+    // Find the highest userID in the database
+    const highestUser = await this.userModel.findOne().sort({ userID: -1 }).exec();
+
+    // Ensure we have a valid numeric userID
+    let nextUserID = 1; // Default to 1 if no users exist
+    if (highestUser && typeof highestUser.userID === 'number' && !isNaN(highestUser.userID)) {
+      nextUserID = highestUser.userID + 1;
+    }
+
+    // If userID was provided in the DTO and it's valid, use it
+    if (createUserDto.userID !== undefined) {
+      if (typeof createUserDto.userID !== 'number' || isNaN(createUserDto.userID)) {
+        throw new BadRequestException('userID must be a valid number');
+      }
+      nextUserID = createUserDto.userID;
+    }
+
+    // Create new user with explicit properties rather than spreading
+    const newUser = new this.userModel({
+      userID: nextUserID,
+      username: createUserDto.username,
+      firstname: createUserDto.firstname,
+      lastname: createUserDto.lastname,
+      password: hashedPassword,
+      email: createUserDto.email,
+      role: createUserDto.role || UserRole.DEALER,
+      level: createUserDto.level || 'A',
+      totalBalance: createUserDto.totalBalance || 0,
+      profitBalance: createUserDto.profitBalance || 0,
+      phoneNumber: createUserDto.phoneNumber || null,
+    });
+
+    return await newUser.save();
   }
 
   async findByUsername(username: string): Promise<UserDocument> {
@@ -115,29 +105,19 @@ export class UsersService {
     const filter: Record<string, any> = {};
 
     if (role !== undefined && role !== null) {
-      console.log(`Adding role filter: ${role}`);
       filter.role = role;
     }
 
     if (level !== undefined && level !== null && level !== '') {
-      console.log(`Adding level filter: ${level}`);
       filter.level = level;
     }
 
     if (search !== undefined && search !== null && search !== '') {
-      console.log(`Adding search filter for: ${search}`);
       filter.$or = [
         { username: { $regex: search, $options: 'i' } },
         { firstname: { $regex: search, $options: 'i' } },
         { lastname: { $regex: search, $options: 'i' } },
       ];
-    }
-
-    console.log('MongoDB filter:', JSON.stringify(filter));
-
-    // Check if filter is empty
-    if (Object.keys(filter).length === 0) {
-      console.log('Warning: Filter is empty - will return all results');
     }
 
     const [users, total] = await Promise.all([
@@ -213,20 +193,16 @@ export class UsersService {
     const filter: Record<string, any> = { role: UserRole.DEALER };
 
     if (level !== undefined && level !== null && level !== '') {
-      console.log(`Adding level filter: ${level}`);
       filter.level = level;
     }
 
     if (search !== undefined && search !== null && search !== '') {
-      console.log(`Adding search filter for: ${search}`);
       filter.$or = [
         { username: { $regex: search, $options: 'i' } },
         { firstname: { $regex: search, $options: 'i' } },
         { lastname: { $regex: search, $options: 'i' } },
       ];
     }
-
-    console.log('MongoDB filter for dealers:', JSON.stringify(filter));
 
     const [users, total] = await Promise.all([
       this.userModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).exec(),
@@ -243,15 +219,81 @@ export class UsersService {
   }
 
   async addRefreshToken(userId: number, refreshToken: string): Promise<void> {
-    await this.userModel.updateOne({ userID: userId }, { $push: { refreshTokens: refreshToken } });
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+
+    try {
+      const user = await this.userModel.findOne({ userID: userId });
+
+      // Remove expired tokens first
+      await this.removeExpiredTokens(userId);
+
+      // Check if max tokens reached (although we have schema validation, we want to handle it gracefully)
+      if (user.refreshTokens.length >= 5) {
+        // Remove the oldest token
+        await this.userModel.updateOne({ userID: userId }, { $pop: { refreshTokens: -1 } });
+      }
+
+      // Add new token
+      await this.userModel.updateOne(
+        { userID: userId },
+        {
+          $push: {
+            refreshTokens: {
+              token: refreshToken,
+              expiresAt: expiresAt,
+            },
+          },
+        },
+      );
+    } catch (error) {
+      throw error;
+    }
   }
 
   async removeRefreshToken(userID: number, refreshToken: string): Promise<void> {
-    await this.userModel.updateOne({ userID: userID }, { $pull: { refreshTokens: refreshToken } });
+    await this.userModel.updateOne(
+      { userID },
+      {
+        $pull: {
+          refreshTokens: {
+            token: refreshToken,
+          },
+        },
+      },
+    );
   }
 
-  async removeAllRefreshTokens(userID: string): Promise<void> {
-    await this.userModel.updateOne({ userID: userID }, { $set: { refreshTokens: [] } });
+  async removeExpiredTokens(userID: number): Promise<void> {
+    const now = new Date();
+    await this.userModel.updateOne(
+      { userID },
+      {
+        $pull: {
+          refreshTokens: {
+            expiresAt: { $lt: now },
+          },
+        },
+      },
+    );
+  }
+
+  async removeAllRefreshTokens(userID: number): Promise<void> {
+    await this.userModel.updateOne({ userID }, { $set: { refreshTokens: [] } });
+  }
+
+  async cleanupExpiredTokens(): Promise<void> {
+    const now = new Date();
+    await this.userModel.updateMany(
+      {},
+      {
+        $pull: {
+          refreshTokens: {
+            expiresAt: { $lt: now },
+          },
+        },
+      },
+    );
   }
 
   async update(userID: number, updateUserDto: UpdateUserDto): Promise<UserDocument> {

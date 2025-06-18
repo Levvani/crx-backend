@@ -5,5 +5,8 @@ export interface JwtPayload {
   sub: number;
   username: string;
   role: UserRole;
-  level: string;
+  level: string | null;
+  iat?: number; // Issued at
+  exp?: number; // Expiration time
+  iss?: string; // Issuer
 }
