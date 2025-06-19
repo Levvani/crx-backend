@@ -11,19 +11,19 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
-  Delete,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PricesService } from './prices.service';
 import { CreatePriceDto } from './dto/create-price.dto';
-import { UpdatePriceDto } from './dto/update-price.dto';
+import { AddDynamicKeyDto } from './dto/add-dynamic-key.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { CreateDealerTypeDto } from './dto/create-dealer-type.dto';
 
 @Controller('basePrices')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -65,6 +65,12 @@ export class PricesController {
     return this.pricesService.parseAndSaveFile(file);
   }
 
+  @Put('add-dynamic-key')
+  @Roles(UserRole.ADMIN)
+  addDynamicKey(@Body() addDynamicKeyDto: AddDynamicKeyDto) {
+    return this.pricesService.addDynamicKey(addDynamicKeyDto);
+  }
+
   @Get('base')
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
   findAll(@Request() req: Request & { user: { role: UserRole; level: number } }) {
@@ -85,16 +91,19 @@ export class PricesController {
 
   @Put('base/:id')
   @Roles(UserRole.ADMIN)
-  update(@Param('id', ParseIntPipe) id: number, @Body() updatePriceDto: UpdatePriceDto) {
-    return this.pricesService.update(id, updatePriceDto);
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: false,
+      forbidNonWhitelisted: false,
+      transform: true,
+      skipMissingProperties: true,
+    }),
+  )
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateData: any) {
+    return this.pricesService.update(id, updateData);
   }
 
   // Dealer Type endpoints
-  @Post('dealer-types')
-  @Roles(UserRole.ADMIN)
-  async createDealerType(@Body() createDealerTypeDto: CreateDealerTypeDto) {
-    return this.pricesService.createDealerType(createDealerTypeDto);
-  }
   @Roles(UserRole.ADMIN)
   @Get('dealer-types/:id')
   async findDealerTypeById(@Param('id') id: string) {
@@ -104,20 +113,5 @@ export class PricesController {
   @Get('dealer-types')
   async findAllDealerTypes() {
     return this.pricesService.findAllDealerTypes();
-  }
-
-  @Put('dealer-types/:id')
-  @Roles(UserRole.ADMIN)
-  async updateDealerType(
-    @Param('id') id: string,
-    @Body() updateData: Partial<CreateDealerTypeDto>,
-  ) {
-    return this.pricesService.updateDealerType(id, updateData);
-  }
-
-  @Delete('dealer-types/:id')
-  @Roles(UserRole.ADMIN)
-  async deleteDealerType(@Param('id') id: string) {
-    return this.pricesService.deleteDealerType(id);
   }
 }

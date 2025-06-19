@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class UpdatePriceDto {
   @IsNumber()
@@ -8,4 +8,11 @@ export class UpdatePriceDto {
   @IsNumber()
   @IsOptional()
   upsellAmount?: number;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+  // Allow any additional dynamic properties (dealer types)
+  @IsString()
+  key: any;
 }

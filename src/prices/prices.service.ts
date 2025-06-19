@@ -5,6 +5,7 @@ import { Price, PriceDocument } from './schemas/price.schema';
 import { DealerType, DealerTypeDocument } from './schemas/dealer-type.schema';
 import { CreatePriceDto } from './dto/create-price.dto';
 import { UpdatePriceDto } from './dto/update-price.dto';
+import { AddDynamicKeyDto } from './dto/add-dynamic-key.dto';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -60,6 +61,30 @@ export class PricesService {
     }
 
     return updatedPrice;
+  }
+
+  async addDynamicKey(
+    addDynamicKeyDto: AddDynamicKeyDto,
+  ): Promise<{ message: string; affectedCount: number }> {
+    const { name, amount } = addDynamicKeyDto;
+
+    // Check if a dealer type with this name already exists
+    const existingDealerType = await this.dealerTypeModel.findOne({ name }).exec();
+    if (existingDealerType) {
+      throw new BadRequestException(`Dealer type with name '${name}' already exists`);
+    }
+
+    // Create the new dealer type
+    const newDealerType = new this.dealerTypeModel({ name, amount });
+    await newDealerType.save();
+
+    // Update all existing price documents to include the new dealer type
+    const updateResult = await this.priceModel.updateMany({}, { $set: { [name]: amount } }).exec();
+
+    return {
+      message: `Successfully added dealer type '${name}' with amount ${amount} to all base prices`,
+      affectedCount: updateResult.modifiedCount,
+    };
   }
 
   async parseAndSaveFile(file: Express.Multer.File): Promise<Price[]> {
