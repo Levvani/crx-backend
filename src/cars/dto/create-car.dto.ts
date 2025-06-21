@@ -101,4 +101,14 @@ export class CreateCarDto {
   @IsNumber()
   @Min(0)
   financingAmount: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  paid: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  toBePaid: number;
 }

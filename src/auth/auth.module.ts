@@ -29,7 +29,7 @@ import { APP_GUARD } from '@nestjs/core';
         return {
           secret,
           signOptions: {
-            expiresIn: '15m',
+            expiresIn: process.env.JWT_EXPIRATION,
           },
         };
       },

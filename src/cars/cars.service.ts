@@ -90,6 +90,7 @@ export class CarsService {
       transportationPrice,
       totalCost,
       photos: photos?.map((photo) => `/uploads/cars/${photo.filename}`) || [],
+      toBePaid: totalCost,
     });
 
     const savedCar = await newCar.save();
@@ -122,6 +123,7 @@ export class CarsService {
       const newTransportationPrice = updateData.transportationPrice ?? car.transportationPrice;
       const newAuctionPrice = updateData.auctionPrice ?? car.auctionPrice;
       updateData.totalCost = newTransportationPrice + newAuctionPrice;
+      updateData.toBePaid = updateData.totalCost;
     }
 
     // Check if status is being updated to 'Green'

@@ -152,6 +152,8 @@ export class CarsController {
       auctionPrice: car.auctionPrice || null,
       transportationPrice: car.transportationPrice || null,
       totalCost: car.totalCost || null,
+      paid: car.paid || null,
+      toBePaid: car.toBePaid || null,
       containerNumber: car.containerNumber || null,
       status: car.status || null,
       isHybridOrElectric: car.isHybridOrElectric || false,

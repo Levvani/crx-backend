@@ -154,14 +154,10 @@ export class BogApiService {
 
   private async processStatementAndUpdateCars(statementData: StatementResponse): Promise<void> {
     try {
-      console.log('Starting processStatementAndUpdateCars');
-      console.log('Statement data received:', JSON.stringify(statementData, null, 2));
-
       // Get all cars with their VIN codes and required fields for totalCost calculation
       const cars = await this.carModel
-        .find({}, { vinCode: 1, auctionPrice: 1, carID: 1, transportationPrice: 1 })
+        .find({}, { vinCode: 1, toBePaid: 1, carID: 1, transportationPrice: 1 })
         .lean();
-      console.log('Found cars:', cars.length);
 
       // Create a map of VIN codes to car data for quick lookup
       const vinCodeToCarData = new Map(
@@ -169,12 +165,11 @@ export class BogApiService {
           car.vinCode,
           {
             id: car.carID,
-            auctionPrice: car.auctionPrice || 0,
+            toBePaid: car.toBePaid || 0,
             transportationPrice: car.transportationPrice || 0,
           },
         ]),
       );
-      console.log('Created VIN code map with entries:', vinCodeToCarData.size);
 
       // Get all processed entry IDs in a single query
       const processedEntryIds = new Set(
@@ -182,10 +177,9 @@ export class BogApiService {
           (entry) => entry.entryId,
         ),
       );
-      console.log('Found processed entries:', processedEntryIds.size);
 
       // Process statement entries and collect updates
-      const updates: { id: number; auctionPrice: number; totalCost: number }[] = [];
+      const updates: { id: number; toBePaid: number }[] = [];
       const processedEntries: {
         entryId: number;
         amount: number;
@@ -193,21 +187,9 @@ export class BogApiService {
       }[] = [];
 
       if (statementData?.Records && Array.isArray(statementData.Records)) {
-        console.log('Processing', statementData.Records.length, 'records');
-
         for (const entry of statementData.Records) {
-          console.log(
-            'Processing entry:',
-            entry.EntryId,
-            'Comment:',
-            entry.EntryComment,
-            'Amount:',
-            entry.EntryAmount,
-          );
-
           // Skip if entry has already been processed (using in-memory Set)
           if (processedEntryIds.has(entry.EntryId)) {
-            console.log('Entry already processed, skipping:', entry.EntryId);
             continue;
           }
 
@@ -215,21 +197,11 @@ export class BogApiService {
             // Find matching car by VIN code in EntryComment
             for (const [vinCode, carData] of vinCodeToCarData.entries()) {
               if (entry.EntryComment.includes(vinCode)) {
-                console.log('Found matching car for VIN:', vinCode);
-                const newAuctionPrice = carData.auctionPrice - entry.EntryAmount;
-                const newTotalCost = carData.transportationPrice + newAuctionPrice;
+                const toBePaid = carData.toBePaid - entry.EntryAmount;
 
                 updates.push({
                   id: carData.id,
-                  auctionPrice: newAuctionPrice,
-                  totalCost: newTotalCost,
-                });
-                console.log('Added update:', {
-                  id: carData.id,
-                  oldAuctionPrice: carData.auctionPrice,
-                  newAuctionPrice,
-                  oldTotalCost: carData.transportationPrice + carData.auctionPrice,
-                  newTotalCost,
+                  toBePaid: toBePaid,
                 });
 
                 processedEntries.push({
@@ -247,18 +219,14 @@ export class BogApiService {
 
       // First update cars in batches
       if (updates.length > 0) {
-        console.log('Found', updates.length, 'updates to process');
-
         // First, get current car data to calculate cost differences
         const carsToUpdate = await this.carModel
           .find(
             { carID: { $in: updates.map((u) => u.id) } },
             {
               username: 1,
-              totalCost: 1,
               carID: 1,
-              auctionPrice: 1,
-              transportationPrice: 1,
+              toBePaid: 1,
             },
           )
           .lean();
@@ -268,16 +236,7 @@ export class BogApiService {
         for (const car of carsToUpdate) {
           const update = updates.find((u) => u.id === car.carID);
           if (update) {
-            const oldTotalCost = (car.auctionPrice || 0) + (car.transportationPrice || 0);
-            const costDifference = update.totalCost - oldTotalCost;
-            console.log(
-              'Car',
-              car.carID,
-              'for user',
-              car.username,
-              'cost difference:',
-              costDifference,
-            );
+            const costDifference = update.toBePaid - car.toBePaid;
 
             if (costDifference !== 0) {
               userUpdates.set(car.username, (userUpdates.get(car.username) || 0) + costDifference);
@@ -285,17 +244,12 @@ export class BogApiService {
           }
         }
 
-        console.log('User updates to process:', Array.from(userUpdates.entries()));
-
         // Update user balances first
         for (const [username, costDifference] of userUpdates.entries()) {
           try {
-            console.log('Updating balance for user:', username, 'with difference:', costDifference);
             const user = await this.usersService.findByUsername(username);
-            console.log('Found user:', user.userID);
 
             await this.usersService.updateTotalBalance(user.userID, costDifference);
-            console.log('Successfully updated balance for user:', username);
           } catch (error) {
             console.error(`Failed to update total balance for user ${username}:`, error);
             // Continue with other updates even if one fails
@@ -306,31 +260,31 @@ export class BogApiService {
         const batchSize = 100;
         for (let i = 0; i < updates.length; i += batchSize) {
           const batch = updates.slice(i, i + batchSize);
-          console.log(
-            'Processing batch',
-            i / batchSize + 1,
-            'of',
-            Math.ceil(updates.length / batchSize),
-          );
 
-          const bulkOps = batch.map((update) => ({
-            updateOne: {
-              filter: { carID: update.id },
-              update: {
-                $set: {
-                  auctionPrice: update.auctionPrice,
-                  totalCost: update.totalCost,
+          console.log('Batch:', batch);
+          const bulkOps = batch.map((update) => {
+            // Find the current car object for this update
+            const car = cars.find((c) => c.carID === update.id);
+            const currentToBePaid = car?.toBePaid || 0; // Get the current toBePaid value
+            const diff = currentToBePaid - update.toBePaid; // Calculate the difference
+            console.log('Diff:', diff);
+            return {
+              updateOne: {
+                filter: { carID: update.id },
+                update: {
+                  $set: {
+                    toBePaid: diff,
+                  },
                 },
               },
-            },
-          }));
+            };
+          });
 
           await this.carModel.bulkWrite(bulkOps);
         }
 
         // Store processed entries in a single bulk insert
         if (processedEntries.length > 0) {
-          console.log('Storing', processedEntries.length, 'processed entries');
           const processedEntryDocs = processedEntries.map((entry) => ({
             entryId: entry.entryId,
             amount: entry.amount,
@@ -359,20 +313,12 @@ export class BogApiService {
     endDate: string = '2025-05-30',
   ): Promise<StatementResponse> {
     try {
-      console.log('getStatement called with params:', {
-        accountNumber,
-        currency,
-        startDate,
-        endDate,
-      });
       const headers = await this.getAuthHeaders();
       const url = `${BOG_API_CONFIG.statementEndpoint}/${accountNumber}/${currency}/${startDate}/${endDate}`;
-      console.log('Making request to:', url);
 
       const response = await firstValueFrom(
         this.httpService.get<StatementResponse>(url, { headers }),
       );
-      console.log('Received response with', response.data?.Records?.length || 0, 'records');
 
       // Process the statement and update cars
       await this.processStatementAndUpdateCars(response.data);

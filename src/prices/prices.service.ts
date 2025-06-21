@@ -21,7 +21,21 @@ export class PricesService {
   ) {}
 
   async create(createPriceDto: CreatePriceDto): Promise<Price> {
-    const createdPrice = new this.priceModel(createPriceDto);
+    // Get all existing dealer types to add their fields to the new price object
+    const existingDealerTypes = await this.dealerTypeModel.find().exec();
+    const dealerTypeFields: Record<string, number> = {};
+
+    existingDealerTypes.forEach((dealerType) => {
+      dealerTypeFields[dealerType.name] = dealerType.amount;
+    });
+
+    // Create price object with existing dealer type fields
+    const priceData = {
+      ...createPriceDto,
+      ...dealerTypeFields, // Add all existing dealer type fields
+    };
+
+    const createdPrice = new this.priceModel(priceData);
     return createdPrice.save();
   }
 
@@ -34,7 +48,9 @@ export class PricesService {
 
     return prices.map((price) => {
       const priceObj = price.toObject();
-      const levelAmount = priceObj[level] + priceObj.upsellAmount || priceObj.upsellAmount || 0;
+      const levelPrice = Number(priceObj[level]) || 0;
+      const upsellAmount = Number(priceObj.upsellAmount) || 0;
+      const levelAmount = levelPrice + upsellAmount;
 
       return {
         location: priceObj.location,
@@ -110,7 +126,7 @@ export class PricesService {
 
       // Validate required columns
       const requiredColumns = ['location', 'upsellAmount', 'basePrice'];
-      const firstRow = rows[0];
+      const firstRow = rows[0] as Record<string, any>;
       const missingColumns = requiredColumns.filter((col) => !(col in firstRow));
 
       if (missingColumns.length > 0) {
@@ -120,17 +136,26 @@ export class PricesService {
       // Find the highest id in the database
       const highestPrice = await this.priceModel.findOne().sort({ id: -1 }).exec();
 
+      // Get all existing dealer types to add their fields to new price objects
+      const existingDealerTypes = await this.dealerTypeModel.find().exec();
+      const dealerTypeFields: Record<string, number> = {};
+
+      existingDealerTypes.forEach((dealerType) => {
+        dealerTypeFields[dealerType.name] = dealerType.amount;
+      });
+
       let nextId = highestPrice ? highestPrice.id + 1 : 1;
       const now = new Date();
 
       // Prepare bulk operations
-      const operations = rows.map((row) => ({
+      const operations = rows.map((row: any) => ({
         insertOne: {
           document: {
             id: nextId++,
             location: row.location,
             upsellAmount: Number(row.upsellAmount),
             basePrice: Number(row.basePrice),
+            ...dealerTypeFields, // Add all existing dealer type fields
             createdAt: now,
             updatedAt: now,
           },
@@ -209,7 +234,7 @@ export class PricesService {
 
       // Update each price document
       for (const price of prices) {
-        const priceObj = price.toObject();
+        const priceObj = price.toObject() as Record<string, any>;
         const oldValue = priceObj[dealerType.name];
 
         // Remove old field and add new field
@@ -217,7 +242,7 @@ export class PricesService {
           price._id,
           {
             $unset: { [dealerType.name]: 1 },
-            $set: { [updateData.name]: oldValue },
+            $set: { [updateData.name!]: oldValue },
           },
           { new: true },
         );

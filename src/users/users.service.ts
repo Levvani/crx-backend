@@ -346,15 +346,12 @@ export class UsersService {
     return updatedUser;
   }
 
-  async updateTotalBalance(userID: number, costDifference: number): Promise<void> {
+  async updateTotalBalance(userID: number, toBePaid: number): Promise<void> {
     if (isNaN(userID)) {
       throw new BadRequestException(`Invalid userID format: ${userID}`);
     }
 
-    const result = await this.userModel.updateOne(
-      { userID },
-      { $inc: { totalBalance: costDifference } },
-    );
+    const result = await this.userModel.updateOne({ userID }, { $inc: { totalBalance: toBePaid } });
 
     if (result.matchedCount === 0) {
       throw new NotFoundException(`User with userID ${userID} not found`);
