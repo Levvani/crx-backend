@@ -179,7 +179,7 @@ export class BogApiService {
       );
 
       // Process statement entries and collect updates
-      const updates: { id: number; toBePaid: number }[] = [];
+      const updates: { id: number; entryId: number }[] = [];
       const processedEntries: {
         entryId: number;
         amount: number;
@@ -197,11 +197,9 @@ export class BogApiService {
             // Find matching car by VIN code in EntryComment
             for (const [vinCode, carData] of vinCodeToCarData.entries()) {
               if (entry.EntryComment.includes(vinCode)) {
-                const toBePaid = carData.toBePaid - entry.EntryAmount;
-
                 updates.push({
                   id: carData.id,
-                  toBePaid: toBePaid,
+                  entryId: entry.EntryId,
                 });
 
                 processedEntries.push({
@@ -236,7 +234,12 @@ export class BogApiService {
         for (const car of carsToUpdate) {
           const update = updates.find((u) => u.id === car.carID);
           if (update) {
-            const costDifference = update.toBePaid - car.toBePaid;
+            // Find the corresponding processed entry to get the EntryAmount
+            const processedEntry = processedEntries.find((pe) => pe.entryId === update.entryId);
+            const entryAmount = processedEntry?.amount || 0;
+
+            // Cost difference is negative (since we're subtracting from toBePaid)
+            const costDifference = -entryAmount;
 
             if (costDifference !== 0) {
               userUpdates.set(car.username, (userUpdates.get(car.username) || 0) + costDifference);
@@ -256,31 +259,26 @@ export class BogApiService {
           }
         }
 
-        // Then update cars in batches
-        const batchSize = 100;
-        for (let i = 0; i < updates.length; i += batchSize) {
-          const batch = updates.slice(i, i + batchSize);
+        // Then update cars using the dedicated method
+        for (const update of updates) {
+          // Find the corresponding processed entry to get the EntryAmount
+          const processedEntry = processedEntries.find((pe) => pe.entryId === update.entryId);
+          const entryAmount = processedEntry?.amount || 0;
 
-          console.log('Batch:', batch);
-          const bulkOps = batch.map((update) => {
-            // Find the current car object for this update
-            const car = cars.find((c) => c.carID === update.id);
-            const currentToBePaid = car?.toBePaid || 0; // Get the current toBePaid value
-            const diff = currentToBePaid - update.toBePaid; // Calculate the difference
-            console.log('Diff:', diff);
-            return {
-              updateOne: {
-                filter: { carID: update.id },
-                update: {
-                  $set: {
-                    toBePaid: diff,
-                  },
-                },
-              },
-            };
-          });
+          if (entryAmount > 0) {
+            try {
+              // Use negative amount to subtract from toBePaid
+              await this.carsService.updateToBePaid(update.id, -entryAmount);
+              console.log(`Updated car ${update.id} toBePaid by -${entryAmount}`);
 
-          await this.carModel.bulkWrite(bulkOps);
+              // Add the entryAmount to the car's paid field
+              await this.carsService.updatePaid(update.id, entryAmount);
+              console.log(`Updated car ${update.id} paid by +${entryAmount}`);
+            } catch (error) {
+              console.error(`Failed to update car ${update.id}:`, error);
+              // Continue with other updates even if one fails
+            }
+          }
         }
 
         // Store processed entries in a single bulk insert

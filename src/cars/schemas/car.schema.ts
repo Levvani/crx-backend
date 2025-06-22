@@ -55,7 +55,7 @@ export class Car {
   @Prop({ required: false, default: 0 })
   transportationPrice: number;
 
-  @Prop({ required: false })
+  @Prop({ required: false, default: 0 })
   totalCost: number;
 
   @Prop({ required: false })
@@ -73,16 +73,16 @@ export class Car {
   @Prop({ required: false, default: false })
   isOffsite: boolean;
 
-  @Prop({ required: false })
+  @Prop({ required: false, default: 0 })
   auctionFine: number;
 
-  @Prop({ required: false })
+  @Prop({ required: false, default: 0 })
   financingAmount: number;
 
   @Prop({ required: false, default: 0 })
   paid: number;
 
-  @Prop({ required: false })
+  @Prop({ required: false, default: 0 })
   toBePaid: number;
 }
 

@@ -123,7 +123,7 @@ export class CarsService {
       const newTransportationPrice = updateData.transportationPrice ?? car.transportationPrice;
       const newAuctionPrice = updateData.auctionPrice ?? car.auctionPrice;
       updateData.totalCost = newTransportationPrice + newAuctionPrice;
-      updateData.toBePaid = updateData.totalCost;
+      updateData.toBePaid = updateData.totalCost - car.paid;
     }
 
     // Check if status is being updated to 'Green'
@@ -231,5 +231,50 @@ export class CarsService {
       throw new NotFoundException(`Car with ID ${carID} not found`);
     }
     return car;
+  }
+
+  async updateToBePaid(carID: number, amount: number): Promise<void> {
+    // Validate amount parameter
+    if (amount === undefined || amount === null || isNaN(amount) || amount === 0) {
+      console.log(
+        `Invalid or zero amount provided for car ${carID}: ${amount}. Setting toBePaid to totalCost.`,
+      );
+
+      // Find the car and set toBePaid equal to totalCost
+      const car = await this.carModel.findOne({ carID }).exec();
+      if (!car) {
+        throw new NotFoundException(`Car with carID ${carID} not found`);
+      }
+
+      const result = await this.carModel.updateOne(
+        { carID },
+        { $set: { toBePaid: car.totalCost } },
+      );
+
+      if (result.matchedCount === 0) {
+        throw new NotFoundException(`Car with carID ${carID} not found`);
+      }
+      return;
+    }
+
+    const result = await this.carModel.updateOne({ carID }, { $inc: { toBePaid: amount } });
+
+    if (result.matchedCount === 0) {
+      throw new NotFoundException(`Car with carID ${carID} not found`);
+    }
+  }
+
+  async updatePaid(carID: number, amount: number): Promise<void> {
+    // Validate amount parameter
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      console.log(`Invalid amount provided for car ${carID}: ${amount}. Setting paid to 0.`);
+      amount = 0;
+    }
+
+    const result = await this.carModel.updateOne({ carID }, { $inc: { paid: amount } });
+
+    if (result.matchedCount === 0) {
+      throw new NotFoundException(`Car with carID ${carID} not found`);
+    }
   }
 }

@@ -149,20 +149,19 @@ export class CarsController {
       buyer: car.buyer || null,
       buyerPN: car.buyerPN || null,
       buyerPhone: car.buyerPhone || null,
-      auctionPrice: car.auctionPrice || null,
-      transportationPrice: car.transportationPrice || null,
-      totalCost: car.totalCost || null,
-      paid: car.paid || null,
-      toBePaid: car.toBePaid || null,
+      auctionPrice: car.auctionPrice ?? 0,
+      transportationPrice: car.transportationPrice ?? 0,
+      totalCost: car.totalCost ?? 0,
+      paid: car.paid ?? 0,
+      toBePaid: car.toBePaid ?? 0,
       containerNumber: car.containerNumber || null,
       status: car.status || null,
       isHybridOrElectric: car.isHybridOrElectric || false,
       isOffsite: car.isOffsite || false,
-      auctionFine: car.auctionFine || null,
-      financingAmount: car.financingAmount || null,
+      auctionFine: car.auctionFine ?? 0,
+      financingAmount: car.financingAmount ?? 0,
 
       // Additional fields with default values
-      paymentLeft: 0,
       profitDifference: 0,
 
       // Keep the image field from your original response
