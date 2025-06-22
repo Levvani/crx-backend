@@ -111,4 +111,9 @@ export class CreateCarDto {
   @IsNumber()
   @Min(0)
   toBePaid: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  profit: number;
 }

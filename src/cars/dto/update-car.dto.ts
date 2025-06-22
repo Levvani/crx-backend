@@ -107,4 +107,9 @@ export class UpdateCarDto {
   @IsNumber()
   @Min(0)
   toBePaid?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  profit?: number;
 }

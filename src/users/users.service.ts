@@ -351,10 +351,18 @@ export class UsersService {
       throw new BadRequestException(`Invalid userID format: ${userID}`);
     }
 
-    const result = await this.userModel.updateOne({ userID }, { $inc: { totalBalance: toBePaid } });
-
-    if (result.matchedCount === 0) {
+    // First, get the current user to check the resulting balance
+    const user = await this.userModel.findOne({ userID }).exec();
+    if (!user) {
       throw new NotFoundException(`User with userID ${userID} not found`);
     }
+
+    const currentBalance = user.totalBalance || 0;
+    const newBalance = currentBalance + toBePaid;
+
+    // If the new balance would be negative, set it to 0 instead
+    const finalBalance = newBalance < 0 ? 0 : newBalance;
+
+    await this.userModel.updateOne({ userID }, { $set: { totalBalance: finalBalance } });
   }
 }

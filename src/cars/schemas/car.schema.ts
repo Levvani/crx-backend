@@ -84,6 +84,9 @@ export class Car {
 
   @Prop({ required: false, default: 0 })
   toBePaid: number;
+
+  @Prop({ required: false, default: 0 })
+  profit: number;
 }
 
 export const CarSchema = SchemaFactory.createForClass(Car);

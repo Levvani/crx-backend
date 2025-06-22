@@ -22,6 +22,13 @@ interface PaginationOptions {
   limit: number;
 }
 
+interface PriceForLocation {
+  location: string;
+  basePrice: number;
+  upsellAmount: number;
+  [key: string]: any; // For dynamic level properties like 'A', 'B', etc.
+}
+
 @Injectable()
 export class CarsService {
   constructor(
@@ -35,13 +42,20 @@ export class CarsService {
     try {
       const user = await this.usersService.findByUsername(username);
       const newTotalBalance = (user.totalBalance || 0) + totalCost;
-      await this.usersService.update(user.userID, {
-        totalBalance: newTotalBalance,
-      });
+      if (newTotalBalance >= 0) {
+        await this.usersService.update(user.userID, {
+          totalBalance: newTotalBalance,
+        });
+      }
     } catch (error) {
       console.error(`Failed to update total balance for user ${username}:`, error);
       // Don't throw the error to avoid disrupting the car operation
     }
+  }
+
+  private async getPriceForLocation(location: string): Promise<PriceForLocation | undefined> {
+    const prices = await this.pricesService.findAll();
+    return prices.find((p) => p.location === location) as PriceForLocation | undefined;
   }
 
   async create(createCarDto: CreateCarDto, photos?: Express.Multer.File[]): Promise<CarDocument> {
@@ -57,10 +71,10 @@ export class CarsService {
     }
 
     let transportationPrice = 0;
+    let profit = 0;
 
     // Get price information for the location
-    const prices = await this.pricesService.findAll();
-    const priceForLocation = prices.find((p) => p.location === createCarDto.location);
+    const priceForLocation = await this.getPriceForLocation(createCarDto.location);
 
     if (priceForLocation) {
       // Calculate transportation price
@@ -70,6 +84,7 @@ export class CarsService {
       const levelKey = user.level;
       if (priceForLocation[levelKey]) {
         transportationPrice += priceForLocation[levelKey];
+        profit = transportationPrice - priceForLocation.basePrice;
       }
     } else {
       transportationPrice = 0;
@@ -91,6 +106,7 @@ export class CarsService {
       totalCost,
       photos: photos?.map((photo) => `/uploads/cars/${photo.filename}`) || [],
       toBePaid: totalCost,
+      profit: profit,
     });
 
     const savedCar = await newCar.save();
@@ -123,7 +139,19 @@ export class CarsService {
       const newTransportationPrice = updateData.transportationPrice ?? car.transportationPrice;
       const newAuctionPrice = updateData.auctionPrice ?? car.auctionPrice;
       updateData.totalCost = newTransportationPrice + newAuctionPrice;
-      updateData.toBePaid = updateData.totalCost - car.paid;
+      if (updateData.totalCost >= car.paid) {
+        updateData.toBePaid = updateData.totalCost - car.paid;
+      } else {
+        updateData.toBePaid = 0;
+      }
+
+      // Calculate profit if transportationPrice is being updated
+      if (updateData.transportationPrice !== undefined && car.location) {
+        const priceForLocation = await this.getPriceForLocation(car.location);
+        if (priceForLocation && priceForLocation.basePrice !== undefined) {
+          updateData.profit = updateData.transportationPrice - priceForLocation.basePrice;
+        }
+      }
     }
 
     // Check if status is being updated to 'Green'
@@ -137,6 +165,46 @@ export class CarsService {
         { new: true }, // Return the updated document
       )
       .exec();
+
+    // Check if paid exceeds totalCost and handle profit
+    const carPaid = updatedCar.paid || 0;
+    const carTotalCost = updatedCar.totalCost || 0;
+
+    if (carPaid > carTotalCost && carTotalCost > 0) {
+      const profitAmount = carPaid - carTotalCost;
+
+      // Update car: set paid to totalCost and toBePaid to 0
+      await this.carModel.updateOne(
+        { carID },
+        {
+          $set: {
+            toBePaid: 0,
+          },
+        },
+      );
+
+      // Add the profit amount to user's profitBalance
+      try {
+        const user = await this.usersService.findByUsername(updatedCar.username);
+        await this.usersService.update(user.userID, {
+          profitBalance: (user.profitBalance || 0) + profitAmount,
+        });
+
+        console.log(
+          `Added profit ${profitAmount} to user ${updatedCar.username} for car ${carID} during update`,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to update profit balance for user ${updatedCar.username} during update:`,
+          error,
+        );
+        // Don't throw the error to avoid disrupting the car operation
+      }
+
+      // // Update the returned car object to reflect the changes
+      // updatedCar.paid = carTotalCost;
+      // updatedCar.toBePaid = 0;
+    }
 
     // Update user's total balance only if totalCost was actually changed
     if (updateData.totalCost !== undefined) {
@@ -257,11 +325,26 @@ export class CarsService {
       return;
     }
 
-    const result = await this.carModel.updateOne({ carID }, { $inc: { toBePaid: amount } });
-
-    if (result.matchedCount === 0) {
+    // Get current car data to check if paid exceeds totalCost after update
+    const car = await this.carModel.findOne({ carID }).exec();
+    if (!car) {
       throw new NotFoundException(`Car with carID ${carID} not found`);
     }
+
+    const currentPaid = car.paid || 0;
+    const totalCost = car.totalCost || 0;
+    const currentToBePaid = car.toBePaid || 0;
+    const newToBePaid = currentToBePaid + amount;
+
+    // If paid already exceeds totalCost, keep toBePaid at 0
+    if (currentPaid > totalCost && totalCost > 0) {
+      await this.carModel.updateOne({ carID }, { $set: { toBePaid: 0 } });
+      return;
+    }
+
+    // Update toBePaid, but ensure it doesn't go below 0
+    const finalToBePaid = Math.max(0, newToBePaid);
+    await this.carModel.updateOne({ carID }, { $set: { toBePaid: finalToBePaid } });
   }
 
   async updatePaid(carID: number, amount: number): Promise<void> {
@@ -271,10 +354,46 @@ export class CarsService {
       amount = 0;
     }
 
-    const result = await this.carModel.updateOne({ carID }, { $inc: { paid: amount } });
-
-    if (result.matchedCount === 0) {
+    // First, get the current car data to check totalCost and current paid amount
+    const car = await this.carModel.findOne({ carID }).exec();
+    if (!car) {
       throw new NotFoundException(`Car with carID ${carID} not found`);
+    }
+
+    const currentPaid = car.paid || 0;
+    const totalCost = car.totalCost || 0;
+    const newPaid = currentPaid + amount;
+
+    // Check if new paid amount exceeds totalCost
+    if (newPaid > totalCost && totalCost > 0) {
+      const profitAmount = newPaid - totalCost;
+
+      // Update car: set paid to totalCost and toBePaid to 0
+      await this.carModel.updateOne(
+        { carID },
+        {
+          $set: {
+            paid: newPaid,
+            toBePaid: 0,
+          },
+        },
+      );
+
+      // Add the profit amount to user's profitBalance
+      try {
+        const user = await this.usersService.findByUsername(car.username);
+        await this.usersService.update(user.userID, {
+          profitBalance: (user.profitBalance || 0) + profitAmount,
+        });
+
+        console.log(`Added profit ${profitAmount} to user ${car.username} for car ${carID}`);
+      } catch (error) {
+        console.error(`Failed to update profit balance for user ${car.username}:`, error);
+        // Don't throw the error to avoid disrupting the car operation
+      }
+    } else {
+      // Normal case: just increment the paid amount
+      await this.carModel.updateOne({ carID }, { $inc: { paid: amount } });
     }
   }
 }

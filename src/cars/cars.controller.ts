@@ -160,9 +160,7 @@ export class CarsController {
       isOffsite: car.isOffsite || false,
       auctionFine: car.auctionFine ?? 0,
       financingAmount: car.financingAmount ?? 0,
-
-      // Additional fields with default values
-      profitDifference: 0,
+      profit: car.profit ?? 0,
 
       // Keep the image field from your original response
       image: '/assets/car-logo-icon-emblem-design-600nw-473088037.webp',
