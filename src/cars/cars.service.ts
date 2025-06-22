@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Car, CarDocument } from './schemas/car.schema';
@@ -395,5 +395,46 @@ export class CarsService {
       // Normal case: just increment the paid amount
       await this.carModel.updateOne({ carID }, { $inc: { paid: amount } });
     }
+  }
+
+  async transfer(carID: number, amount: number): Promise<void> {
+    // Find the car by carID
+    const car = await this.carModel.findOne({ carID }).exec();
+    if (!car) {
+      throw new NotFoundException(`Car with carID ${carID} not found`);
+    }
+
+    // Get the user linked to this car
+    const user = await this.usersService.findByUsername(car.username);
+    const currentProfitBalance = user.profitBalance || 0;
+
+    // Check if user has sufficient profit balance
+    if (currentProfitBalance < amount) {
+      throw new BadRequestException(
+        `Insufficient profit balance. User ${car.username} has ${currentProfitBalance} but ${amount} is required`,
+      );
+    }
+
+    // Deduct amount from user's profit balance and total balance
+    const newProfitBalance = currentProfitBalance - amount;
+    const currentTotalBalance = user.totalBalance || 0;
+    const newTotalBalance = currentTotalBalance - amount;
+
+    await this.usersService.update(user.userID, {
+      profitBalance: newProfitBalance,
+      totalBalance: newTotalBalance,
+    });
+
+    const currentToBePaid = car.toBePaid || 0;
+
+    // Calculate new toBePaid value after deducting the amount
+    const newToBePaid = Math.max(0, currentToBePaid - amount);
+
+    // Update the car's toBePaid value
+    await this.carModel.updateOne({ carID }, { $set: { toBePaid: newToBePaid } });
+
+    console.log(
+      `Transferred ${amount} from car ${carID}. User ${car.username} profitBalance: ${currentProfitBalance} -> ${newProfitBalance}, totalBalance: ${currentTotalBalance} -> ${newTotalBalance}. Car toBePaid: ${currentToBePaid} -> ${newToBePaid}`,
+    );
   }
 }

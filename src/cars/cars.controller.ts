@@ -20,6 +20,7 @@ import { CarsService } from './cars.service';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { PaginationDto } from './dto/pagination.dto';
+import { TransferDto } from './dto/transfer.dto';
 import { Car } from './schemas/car.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -174,5 +175,13 @@ export class CarsController {
   @Roles(UserRole.ADMIN)
   async delete(@Body('carID') carID: number): Promise<Car> {
     return this.carsService.delete(carID);
+  }
+
+  @Post('transfer')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  async transfer(@Body() transferDto: TransferDto): Promise<{ message: string }> {
+    await this.carsService.transfer(transferDto.id, transferDto.amount);
+    return { message: `Successfully transferred ${transferDto.amount} from car ${transferDto.id}` };
   }
 }
