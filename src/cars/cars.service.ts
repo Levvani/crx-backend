@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Cron } from '@nestjs/schedule';
 import { Car, CarDocument } from './schemas/car.schema';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
@@ -178,6 +179,7 @@ export class CarsService {
         { carID },
         {
           $set: {
+            paid: car.totalCost,
             toBePaid: 0,
           },
         },
@@ -373,7 +375,7 @@ export class CarsService {
         { carID },
         {
           $set: {
-            paid: newPaid,
+            paid: totalCost,
             toBePaid: 0,
           },
         },
@@ -436,5 +438,55 @@ export class CarsService {
     console.log(
       `Transferred ${amount} from car ${carID}. User ${car.username} profitBalance: ${currentProfitBalance} -> ${newProfitBalance}, totalBalance: ${currentTotalBalance} -> ${newTotalBalance}. Car toBePaid: ${currentToBePaid} -> ${newToBePaid}`,
     );
+  }
+
+  @Cron('0 0 * * *') // Run every day at midnight (end of day)
+  async applyDailyFinancingInterest(): Promise<void> {
+    console.log('Running daily financing interest calculation...');
+
+    try {
+      // Find all cars with financing amount greater than 0
+      const carsWithFinancing = await this.carModel.find({ financingAmount: { $gt: 0 } }).exec();
+
+      if (carsWithFinancing.length === 0) {
+        console.log('No cars with financing found');
+        return;
+      }
+
+      console.log(`Found ${carsWithFinancing.length} cars with financing amounts`);
+
+      // Process each car
+      for (const car of carsWithFinancing) {
+        const financingAmount = car.financingAmount || 0;
+        const currentTotalCost = car.totalCost || 0;
+
+        // Calculate 0.3% interest
+        const interestAmount = financingAmount * 0.003; // 0.3% = 0.003
+
+        // Add interest to totalCost
+        const newTotalCost = currentTotalCost + interestAmount;
+
+        // Update the car
+        await this.carModel.updateOne({ carID: car.carID }, { $set: { totalCost: newTotalCost } });
+
+        // Update user's total balance with the interest amount
+        try {
+          await this.updateUserTotalBalance(car.username, interestAmount);
+        } catch (error) {
+          console.error(`Failed to update total balance for user ${car.username}:`, error);
+          // Continue with other cars even if one fails
+        }
+
+        console.log(
+          `Applied interest to car ${car.carID} (${car.username}): ${financingAmount} * 0.3% = ${interestAmount}. TotalCost: ${currentTotalCost} -> ${newTotalCost}`,
+        );
+      }
+
+      console.log(
+        `Daily financing interest calculation completed for ${carsWithFinancing.length} cars`,
+      );
+    } catch (error) {
+      console.error('Error during daily financing interest calculation:', error);
+    }
   }
 }
