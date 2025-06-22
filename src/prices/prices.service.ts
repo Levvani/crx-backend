@@ -94,11 +94,19 @@ export class PricesService {
     const newDealerType = new this.dealerTypeModel({ name, amount });
     await newDealerType.save();
 
-    // Update all existing price documents to include the new dealer type
-    const updateResult = await this.priceModel.updateMany({}, { $set: { [name]: amount } }).exec();
+    // Update all existing price documents with calculated values using aggregation pipeline
+    const updateResult = await this.priceModel
+      .updateMany({}, [
+        {
+          $set: {
+            [name]: { $add: [amount, { $ifNull: ['$upsellAmount', 0] }] },
+          },
+        },
+      ])
+      .exec();
 
     return {
-      message: `Successfully added dealer type '${name}' with amount ${amount} to all base prices`,
+      message: `Successfully added dealer type '${name}' with calculated values (amount + upsellAmount) to all base prices`,
       affectedCount: updateResult.modifiedCount,
     };
   }
@@ -191,25 +199,6 @@ export class PricesService {
   }
 
   // Dealer Type methods
-  async createDealerType(createDealerTypeDto: CreateDealerTypeDto): Promise<DealerType> {
-    // First create the dealer type
-    const createdDealerType = new this.dealerTypeModel(createDealerTypeDto);
-    const savedDealerType = await createdDealerType.save();
-
-    // Then update all existing price objects with the new dealer type
-    const prices = await this.priceModel.find().exec();
-
-    // Update each price document with the new dealer type field
-    for (const price of prices) {
-      await this.priceModel.findByIdAndUpdate(
-        price._id,
-        { $set: { [savedDealerType.name]: savedDealerType.amount } },
-        { new: true },
-      );
-    }
-
-    return savedDealerType;
-  }
 
   async findAllDealerTypes(): Promise<DealerType[]> {
     return this.dealerTypeModel.find().exec();
