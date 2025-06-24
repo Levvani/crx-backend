@@ -338,9 +338,15 @@ export class InvoiceService {
   /**
    * Generate an invoice PDF for a car using pdf-lib (exact implementation from your code)
    * @param car The car object containing data for the invoice
+   * @param type The type of invoice ('transportation' or 'car')
+   * @param amount Optional amount to override default car prices
    * @returns Object containing the file path and buffer
    */
-  async generateInvoice(car: Car): Promise<{ filePath: string; buffer: Buffer }> {
+  async generateInvoice(
+    car: Car,
+    type: string,
+    amount?: number,
+  ): Promise<{ filePath: string; buffer: Buffer }> {
     try {
       const invoiceNumber = await this.getNextInvoiceNumber();
 
@@ -453,11 +459,25 @@ export class InvoiceService {
         standardBoldFont,
       );
 
+      // Determine amount based on type and provided amount
+      let finalAmount: number;
+      let purpose: string;
+
+      if (type === 'transportation') {
+        finalAmount = amount !== undefined ? amount : car.transportationPrice || 0;
+        purpose = 'ტრანსპორტირება';
+      } else if (type === 'car') {
+        finalAmount = amount !== undefined ? amount : car.auctionPrice || 0;
+        purpose = 'ავტომობილის ღირებულება';
+      } else {
+        throw new Error(`Invalid type: ${type}. Must be 'transportation' or 'car'`);
+      }
+
       // Draw the table
       const tableData = {
         vinNumber: car.vinCode || 'N/A',
-        amount: car.transportationPrice || 0,
-        purpose: 'ტრანსპორტირება',
+        amount: finalAmount,
+        purpose: purpose,
       };
 
       this.drawTable(
@@ -477,8 +497,9 @@ export class InvoiceService {
       const pdfBytes = await pdfDoc.save();
       const pdfBuffer = Buffer.from(pdfBytes);
 
-      // Save to file with Georgian filename
-      const filename = `ტრანსპორტირების ინვოისი ${car.vinCode}.pdf`;
+      // Save to file with Georgian filename based on type
+      const typeText = type === 'transportation' ? 'ტრანსპორტირების' : 'ავტომობილის';
+      const filename = `${typeText} ინვოისი ${car.vinCode}.pdf`;
       const filePath = path.join(this.uploadsPath, filename);
       await fs.writeFile(filePath, pdfBuffer);
 
