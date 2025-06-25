@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsNumber, IsString, Min, IsOptional, IsBoolean } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  Min,
+  IsOptional,
+  IsBoolean,
+  IsEnum,
+} from 'class-validator';
+import { CarStatus } from '../schemas/car.schema';
 
 export class CreateCarDto {
   @IsOptional()
@@ -81,8 +90,8 @@ export class CreateCarDto {
   containerNumber: string;
 
   @IsOptional()
-  @IsString()
-  status: string;
+  @IsEnum(CarStatus)
+  status: CarStatus;
 
   @IsOptional()
   @IsBoolean()

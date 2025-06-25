@@ -1,6 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+export enum CarStatus {
+  PURCHASED = 'Purchased',
+  GREEN = 'Green',
+  IN_TRANSIT = 'In Transit',
+}
+
 export type CarDocument = Car & Document;
 
 @Schema()
@@ -65,7 +71,7 @@ export class Car {
   createdAt: Date;
 
   @Prop({ required: false })
-  status: string;
+  status: CarStatus;
 
   @Prop({ required: false, default: false })
   isHybridOrElectric: boolean;

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cron } from '@nestjs/schedule';
-import { Car, CarDocument } from './schemas/car.schema';
+import { Car, CarDocument, CarStatus } from './schemas/car.schema';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { UsersService } from '../users/users.service';
@@ -14,7 +14,7 @@ interface CarFilters {
   vinCode?: string;
   containerNumber?: string;
   username?: string;
-  status?: string;
+  status?: CarStatus;
   dateOfPurchase?: string;
 }
 
@@ -102,7 +102,7 @@ export class CarsService {
     const newCar = new this.carModel({
       ...createCarDto,
       carID: nextCarID,
-      status: 'Purchased',
+      status: createCarDto.containerNumber ? CarStatus.IN_TRANSIT : CarStatus.PURCHASED,
       transportationPrice,
       totalCost,
       photos: photos?.map((photo) => `/uploads/cars/${photo.filename}`) || [],
@@ -135,6 +135,15 @@ export class CarsService {
       delete (updateData as { carID?: number }).carID;
     }
 
+    // Auto-update status to 'In Transit' when containerNumber is set or updated
+    if (
+      updateData.containerNumber !== undefined &&
+      updateData.containerNumber !== null &&
+      updateData.containerNumber !== ''
+    ) {
+      updateData.status = CarStatus.IN_TRANSIT;
+    }
+
     // Calculate new totalCost if either transportationPrice or auctionPrice is being updated
     if (updateData.transportationPrice !== undefined || updateData.auctionPrice !== undefined) {
       const newTransportationPrice = updateData.transportationPrice ?? car.transportationPrice;
@@ -156,7 +165,8 @@ export class CarsService {
     }
 
     // Check if status is being updated to 'Green'
-    const isStatusChangingToGreen = updateData.status === 'Green' && car.status !== 'Green';
+    const isStatusChangingToGreen =
+      updateData.status === CarStatus.GREEN && car.status !== CarStatus.GREEN;
 
     // Update the car and return the updated document
     const updatedCar = await this.carModel
