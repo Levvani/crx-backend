@@ -82,10 +82,6 @@ export class NotificationController {
     @Body('message') message: string,
     @UploadedFile() image: Express.Multer.File,
   ): Promise<{ message: string }> {
-    if (!image) {
-      throw new BadRequestException('Image file is required');
-    }
-
     if (isOn === undefined || message === undefined) {
       throw new BadRequestException('isOn and message fields are required');
     }
@@ -96,11 +92,11 @@ export class NotificationController {
     const notificationDto: NotificationDto = {
       isOn: isOnBoolean,
       message: message,
-      image: image.path, // Store the file path
+      image: image ? image.path : undefined, // Make image optional
     };
 
     await this.notificationService.updateNotification(notificationDto);
 
-    return { message: 'Notification created successfully' };
+    return { message: 'Notification updated successfully' };
   }
 }
