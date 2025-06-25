@@ -21,7 +21,7 @@ import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { PaginationDto } from './dto/pagination.dto';
 import { TransferDto } from './dto/transfer.dto';
-import { Car } from './schemas/car.schema';
+import { Car, CarStatus } from './schemas/car.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -66,6 +66,7 @@ export class CarsController {
     @Query('username') username?: string,
     @Query('status') status?: string,
     @Query('dateOfPurchase') dateOfPurchase?: string,
+    @Query('buyer') buyer?: string,
   ): Promise<{
     cars: any[];
     total: number;
@@ -80,13 +81,29 @@ export class CarsController {
       username = req.user.username;
     }
 
+    // Handle multiple usernames (comma-separated)
+    let usernameFilter: string | string[] | undefined = username;
+    if (username && username.includes(',')) {
+      usernameFilter = username
+        .split(',')
+        .map((u) => u.trim())
+        .filter((u) => u.length > 0);
+    }
+
+    // Convert status string to CarStatus enum if provided
+    let statusFilter: CarStatus | undefined = undefined;
+    if (status && Object.values(CarStatus).includes(status as CarStatus)) {
+      statusFilter = status as CarStatus;
+    }
+
     const result = await this.carsService.findAll(
       {
         vinCode,
         containerNumber,
-        username,
-        status,
+        username: usernameFilter,
+        status: statusFilter,
         dateOfPurchase,
+        buyer,
       },
       {
         page: paginationDto.page,

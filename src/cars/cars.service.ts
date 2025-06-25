@@ -13,9 +13,10 @@ import { User } from '../users/schemas/user.schema';
 interface CarFilters {
   vinCode?: string;
   containerNumber?: string;
-  username?: string;
+  username?: string | string[];
   status?: CarStatus;
   dateOfPurchase?: string;
+  buyer?: string;
 }
 
 interface PaginationOptions {
@@ -272,11 +273,20 @@ export class CarsService {
         query.containerNumber = {
           $regex: new RegExp(filters.containerNumber, 'i'),
         };
-      if (filters.username) query.username = { $regex: new RegExp(filters.username, 'i') };
-      if (filters.status) query.status = { $regex: new RegExp(filters.status, 'i') };
+      if (filters.username) {
+        if (Array.isArray(filters.username)) {
+          // Multiple usernames - use $in operator for exact matches
+          query.username = { $in: filters.username };
+        } else {
+          // Single username - use regex for partial matching
+          query.username = { $regex: new RegExp(filters.username, 'i') };
+        }
+      }
+      if (filters.status) query.status = filters.status; // Use exact match for enum
       if (filters.dateOfPurchase) {
         query.dateOfPurchase = filters.dateOfPurchase;
       }
+      if (filters.buyer) query.buyer = { $regex: new RegExp(filters.buyer, 'i') };
     }
 
     const { page, limit } = paginationOptions;

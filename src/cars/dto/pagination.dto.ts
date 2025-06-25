@@ -34,4 +34,8 @@ export class PaginationDto {
   @IsOptional()
   @IsString()
   dateOfPurchase?: string;
+
+  @IsOptional()
+  @IsString()
+  buyer?: string;
 }
