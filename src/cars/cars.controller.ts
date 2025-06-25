@@ -182,8 +182,19 @@ export class CarsController {
 
   @Post('transfer')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  async transfer(@Body() transferDto: TransferDto): Promise<{ message: string }> {
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
+  async transfer(
+    @Body() transferDto: TransferDto,
+    @Request() req: { user: { role: UserRole; username: string } },
+  ): Promise<{ message: string }> {
+    // For dealers, check if the car belongs to them
+    if (req.user.role === UserRole.DEALER) {
+      const car = await this.carsService.findOne(transferDto.id);
+      if (car.username !== req.user.username) {
+        throw new ForbiddenException('You do not have permission to transfer from this car');
+      }
+    }
+
     await this.carsService.transfer(transferDto.id, transferDto.amount);
     return { message: `Successfully transferred ${transferDto.amount} from car ${transferDto.id}` };
   }
