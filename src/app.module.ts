@@ -17,6 +17,7 @@ import { StorageModule } from './config/storage.module';
 import { TitlesModule } from './titles/titles.module';
 import { PricesModule } from './prices/prices.module';
 import { BogApiModule } from './bog-api/bog-api.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { BogApiModule } from './bog-api/bog-api.module';
     TitlesModule,
     PricesModule,
     BogApiModule,
+    NotificationModule,
   ],
 })
 export class AppModule {}
