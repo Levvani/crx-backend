@@ -78,6 +78,3 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
-
-// Add TTL index on expiresAt field
-UserSchema.index({ 'refreshTokens.expiresAt': 1 }, { expireAfterSeconds: 0 });
