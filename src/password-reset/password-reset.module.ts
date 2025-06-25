@@ -13,15 +13,15 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     UsersModule,
     MailerModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
+      useFactory: (configService: ConfigService) => {
         const config = {
           transport: {
-            host: configService.get('SMTP_HOST'),
-            port: configService.get('SMTP_PORT'),
-            secure: configService.get('SMTP_SECURE') === 'true',
+            host: configService.get<string>('SMTP_HOST'),
+            port: configService.get<number>('SMTP_PORT'),
+            secure: configService.get<string>('SMTP_SECURE') === 'true',
             auth: {
-              user: configService.get('SMTP_USER'),
-              pass: configService.get('SMTP_PASS'),
+              user: configService.get<string>('SMTP_USER'),
+              pass: configService.get<string>('SMTP_PASS'),
             },
             debug: true,
             logger: true,

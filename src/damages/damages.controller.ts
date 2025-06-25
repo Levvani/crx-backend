@@ -48,7 +48,7 @@ export class DamagesController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
-  async findAll(@Request() req): Promise<Damage[]> {
+  async findAll(@Request() req: { user: { role: UserRole; username: string } }): Promise<Damage[]> {
     // For dealers, only return damages with their username
     if (req.user.role === UserRole.DEALER) {
       return this.damagesService.findAll(req.user.username);
@@ -62,7 +62,7 @@ export class DamagesController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
   async findOne(
     @Param('damageID', ParseIntPipe) damageID: number,
-    @Request() req,
+    @Request() req: { user: { role: UserRole; username: string } },
   ): Promise<Damage> {
     const damage = await this.damagesService.findOne(damageID);
 

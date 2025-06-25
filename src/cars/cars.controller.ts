@@ -58,7 +58,7 @@ export class CarsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
   async findAll(
-    @Request() req,
+    @Request() req: { user: { role: UserRole; username: string } },
     @Query(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false }))
     paginationDto: PaginationDto,
     @Query('vinCode') vinCode?: string,
@@ -125,7 +125,10 @@ export class CarsController {
   @Get(':carID')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
-  async findOne(@Param('carID', ParseIntPipe) carID: number, @Request() req): Promise<any> {
+  async findOne(
+    @Param('carID', ParseIntPipe) carID: number,
+    @Request() req: { user: { role: UserRole; username: string } },
+  ): Promise<any> {
     const car = await this.carsService.findOne(carID);
 
     // For dealers, check if the car belongs to them

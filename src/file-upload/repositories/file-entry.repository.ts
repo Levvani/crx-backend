@@ -29,7 +29,7 @@ export class FileEntryRepository {
       }
       return [];
     } catch (error) {
-      console.error('Error saving file entries to database:', error.message);
+      console.error('Error saving file entries to database:', (error as Error).message);
       throw error;
     }
   }

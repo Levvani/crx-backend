@@ -129,7 +129,7 @@ export class PasswordResetService {
         });
       } catch (emailError) {
         console.error('Failed to send password reset email:', {
-          error: emailError,
+          error: emailError as Error,
           email,
           timestamp: new Date().toISOString(),
         });
@@ -137,8 +137,8 @@ export class PasswordResetService {
       }
     } catch (error) {
       console.error('Error in createPasswordResetToken:', {
-        error: error.message,
-        type: error.name,
+        error: (error as Error).message,
+        type: (error as Error).name,
         timestamp: new Date().toISOString(),
         email: email,
       });
@@ -180,7 +180,7 @@ export class PasswordResetService {
         hashedPassword = await bcrypt.hash(newPassword, salt);
       } catch (hashError) {
         console.error('Failed to hash new password:', {
-          error: hashError,
+          error: hashError as Error,
           timestamp: new Date().toISOString(),
         });
         throw new InternalServerErrorException('Failed to process password reset');
@@ -189,10 +189,10 @@ export class PasswordResetService {
       // Update user's password
       try {
         const user = await this.usersService.findByEmail(resetRequest.email);
-        await this.usersService.updatePassword(user.id, hashedPassword);
+        await this.usersService.updatePassword(Number(user.id), hashedPassword);
       } catch (userError) {
         console.error('Failed to update user password:', {
-          error: userError,
+          error: userError as Error,
           email: resetRequest.email,
           timestamp: new Date().toISOString(),
         });
@@ -205,7 +205,7 @@ export class PasswordResetService {
         await resetRequest.save();
       } catch (tokenError) {
         console.error('Failed to mark reset token as used:', {
-          error: tokenError,
+          error: tokenError as Error,
           token: token,
           email: resetRequest.email,
           timestamp: new Date().toISOString(),
@@ -215,8 +215,8 @@ export class PasswordResetService {
       }
     } catch (error) {
       console.error('Error in resetPassword:', {
-        error: error.message,
-        type: error.name,
+        error: (error as Error).message,
+        type: (error as Error).name,
         token: token,
         timestamp: new Date().toISOString(),
       });

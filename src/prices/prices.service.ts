@@ -127,7 +127,7 @@ export class PricesService {
         rows = parse(fileContent, {
           columns: true,
           skip_empty_lines: true,
-        });
+        }) as Record<string, unknown>[];
       } else if (fileExt === '.numbers') {
         throw new BadRequestException('Numbers file format is not supported yet');
       }
@@ -152,30 +152,37 @@ export class PricesService {
         dealerTypeFields[dealerType.name] = dealerType.amount;
       });
 
-      let nextId = highestPrice ? highestPrice.id + 1 : 1;
+      let nextId: number = highestPrice ? (highestPrice.id as number) + 1 : 1;
       const now = new Date();
 
       // Prepare bulk operations
-      const operations = rows.map((row: any) => ({
-        insertOne: {
-          document: {
-            id: nextId++,
-            location: row.location,
-            upsellAmount: Number(row.upsellAmount),
-            basePrice: Number(row.basePrice),
-            ...dealerTypeFields, // Add all existing dealer type fields
-            createdAt: now,
-            updatedAt: now,
+      const operations = rows.map((row: any) => {
+        const r = row as {
+          location: string;
+          upsellAmount: number | string;
+          basePrice: number | string;
+        };
+        return {
+          insertOne: {
+            document: {
+              id: nextId++,
+              location: r.location,
+              upsellAmount: Number(r.upsellAmount),
+              basePrice: Number(r.basePrice),
+              ...dealerTypeFields, // Add all existing dealer type fields
+              createdAt: now,
+              updatedAt: now,
+            },
           },
-        },
-      }));
+        };
+      });
 
       // Use bulkWrite for better performance
       const result = await this.priceModel.bulkWrite(operations);
       console.log(`Bulk inserted ${result.insertedCount} prices`);
 
       // Fetch the created documents
-      const startId = highestPrice ? highestPrice.id + 1 : 1;
+      const startId: number = highestPrice ? (highestPrice.id as number) + 1 : 1;
       const endId = startId + rows.length - 1;
 
       const savedPrices = await this.priceModel
@@ -224,14 +231,14 @@ export class PricesService {
       // Update each price document
       for (const price of prices) {
         const priceObj = price.toObject() as Record<string, any>;
-        const oldValue = priceObj[dealerType.name];
+        const oldValue: number = priceObj[dealerType.name] as number;
 
         // Remove old field and add new field
         await this.priceModel.findByIdAndUpdate(
           price._id,
           {
             $unset: { [dealerType.name]: 1 },
-            $set: { [updateData.name!]: oldValue },
+            $set: { [updateData.name]: oldValue },
           },
           { new: true },
         );

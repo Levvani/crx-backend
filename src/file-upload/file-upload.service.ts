@@ -22,8 +22,8 @@ export class FileUploadService {
     try {
       return await this.fileEntryRepository.findAll();
     } catch (error) {
-      console.error('Error retrieving file entries from database:', error.message);
-      throw new Error(`Failed to retrieve file entries: ${error.message}`);
+      console.error('Error retrieving file entries from database:', (error as Error).message);
+      throw new Error(`Failed to retrieve file entries: ${(error as Error).message}`);
     }
   }
 
@@ -55,7 +55,7 @@ export class FileUploadService {
 
       return Promise.resolve(this.validateAndFormatData(data, file));
     } catch (error) {
-      throw new Error(`Failed to parse Excel file: ${error.message}`);
+      throw new Error(`Failed to parse Excel file: ${(error as Error).message}`);
     }
   }
 
@@ -77,14 +77,14 @@ export class FileUploadService {
           .pipe(csvParser())
           .on('data', (data) => {
             if (data && typeof data === 'object') {
-              results.push(data);
+              results.push(data as FileEntryDto);
             }
           })
           .on('end', () => resolve(this.validateAndFormatData(results, file)))
           .on('error', (error) => reject(new Error(`CSV parsing error: ${error.message}`)));
       });
     } catch (error) {
-      throw new Error(`Failed to parse CSV file: ${error.message}`);
+      throw new Error(`Failed to parse CSV file: ${(error as Error).message}`);
     }
   }
 
@@ -117,7 +117,7 @@ export class FileUploadService {
       const data = xlsx.utils.sheet_to_json(worksheet);
       return Promise.resolve(this.validateAndFormatData(data, file));
     } catch (error) {
-      throw new Error(`Failed to parse Numbers file: ${error.message}`);
+      throw new Error(`Failed to parse Numbers file: ${(error as Error).message}`);
     }
   }
 
@@ -135,15 +135,21 @@ export class FileUploadService {
           return { title: '', description: '' };
         }
         // Look for title/Title and description/Description fields
-        const title = item.title || item.Title || '';
-        const description = item.description || item.Description || '';
+        const obj = item as {
+          title?: string;
+          Title?: string;
+          description?: string;
+          Description?: string;
+        };
+        const title = obj.title || obj.Title || '';
+        const description = obj.description || obj.Description || '';
 
         return { title: String(title), description: String(description) };
       })
       .filter((item) => item.title || item.description); // Filter out empty entries
 
     // Save the formatted data to MongoDB
-    this.saveToDatabase(formattedData, file);
+    void this.saveToDatabase(formattedData, file);
 
     return formattedData;
   }
@@ -163,7 +169,7 @@ export class FileUploadService {
       // Use the repository to save the data
       await this.fileEntryRepository.saveMany(entries);
     } catch (error) {
-      console.error('Error saving file entries to database:', error.message);
+      console.error('Error saving file entries to database:', (error as Error).message);
       // We don't throw here to avoid breaking the file upload process
       // The data is still returned to the client even if DB save fails
     }

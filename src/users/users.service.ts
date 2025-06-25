@@ -222,33 +222,29 @@ export class UsersService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
 
-    try {
-      const user = await this.userModel.findOne({ userID: userId });
+    const user = await this.userModel.findOne({ userID: userId });
 
-      // Remove expired tokens first
-      await this.removeExpiredTokens(userId);
+    // Remove expired tokens first
+    await this.removeExpiredTokens(userId);
 
-      // Check if max tokens reached (although we have schema validation, we want to handle it gracefully)
-      if (user.refreshTokens.length >= 5) {
-        // Remove the oldest token
-        await this.userModel.updateOne({ userID: userId }, { $pop: { refreshTokens: -1 } });
-      }
+    // Check if max tokens reached (although we have schema validation, we want to handle it gracefully)
+    if (user.refreshTokens.length >= 5) {
+      // Remove the oldest token
+      await this.userModel.updateOne({ userID: userId }, { $pop: { refreshTokens: -1 } });
+    }
 
-      // Add new token
-      await this.userModel.updateOne(
-        { userID: userId },
-        {
-          $push: {
-            refreshTokens: {
-              token: refreshToken,
-              expiresAt: expiresAt,
-            },
+    // Add new token
+    await this.userModel.updateOne(
+      { userID: userId },
+      {
+        $push: {
+          refreshTokens: {
+            token: refreshToken,
+            expiresAt: expiresAt,
           },
         },
-      );
-    } catch (error) {
-      throw error;
-    }
+      },
+    );
   }
 
   async removeRefreshToken(userID: number, refreshToken: string): Promise<void> {

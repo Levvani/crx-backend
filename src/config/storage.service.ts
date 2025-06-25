@@ -11,7 +11,7 @@ export class StorageService {
 
   constructor(private configService: ConfigService) {
     // Initialize Storage with explicit credentials from environment
-    const keyFilePath = this.configService.get('GCS_KEY_FILE_PATH');
+    const keyFilePath = this.configService.get<string>('GCS_KEY_FILE_PATH');
 
     if (keyFilePath) {
       this.storage = new Storage({

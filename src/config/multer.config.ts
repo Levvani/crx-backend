@@ -23,7 +23,7 @@ export const multerOptions = {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       cb(
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        new Error(`Unsupported file type ${extname(file.originalname)}`),
+        new Error(`Unsupported file type ${extname(file.originalname as string)}`),
         false,
       );
     }
@@ -41,7 +41,7 @@ export const multerOptions = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     filename: (req: any, file: any, cb: any) => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      cb(null, `${uuid()}${extname(file.originalname)}`);
+      cb(null, `${uuid()}${extname(file.originalname as string)}`);
     },
   }),
   limits: {

@@ -24,6 +24,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { UpdatePriceDto } from './dto/update-price.dto';
 
 @Controller('basePrices')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -100,7 +101,7 @@ export class PricesController {
     }),
   )
   update(@Param('id', ParseIntPipe) id: number, @Body() updateData: any) {
-    return this.pricesService.update(id, updateData);
+    return this.pricesService.update(id, updateData as UpdatePriceDto);
   }
 
   // Dealer Type endpoints

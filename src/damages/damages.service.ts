@@ -54,7 +54,7 @@ export class DamagesService {
     const nextDamageID = highestDamage ? highestDamage.damageID + 1 : 1;
 
     // Upload files to GCS if provided
-    let imageUrl = null;
+    let imageUrl: string | null = null;
     const imageUrls: string[] = [];
 
     if (files && files.length > 0) {
@@ -121,7 +121,10 @@ export class DamagesService {
           await damage.save();
         } catch (error) {
           // If car not found or other error, continue without vinCode
-          console.error(`Could not retrieve vinCode for damage ${damage.damageID}:`, error.message);
+          console.error(
+            `Could not retrieve vinCode for damage ${damage.damageID}:`,
+            (error as Error).message,
+          );
         }
 
         return damage;
@@ -153,9 +156,6 @@ export class DamagesService {
   }
 
   async update(damageID: number, updateDamageDto: UpdateDamageDto): Promise<DamageDocument> {
-    // Find the damage by ID
-    const damage = await this.findOne(damageID);
-
     // Restrict updates to only status and approverComment
     const updateData = {
       status: updateDamageDto.status,

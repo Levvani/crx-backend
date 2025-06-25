@@ -31,7 +31,7 @@ export class InvoiceService {
     );
     this.boldFontPath = path.join(process.cwd(), 'src/assets/fonts/NotoSansGeorgian-Bold.ttf');
     // Ensure the uploads directory exists
-    this.ensureUploadsDirectory();
+    void this.ensureUploadsDirectory();
   }
 
   /**
