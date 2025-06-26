@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+      MONGODB_URI: ${MONGODB_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      FRONTEND_URL: ${FRONTEND_URL}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_SECURE: ${SMTP_SECURE}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
+      GCS_KEY_FILE_PATH: ${GCS_KEY_FILE_PATH}
+      BOG_API_URL: ${BOG_API_URL}
+      BOG_CLIENT_ID: ${BOG_CLIENT_ID}
+      BOG_CLIENT_SECRET: ${BOG_CLIENT_SECRET}
+      COPART_USERNAME: ${COPART_USERNAME}
+      COPART_PASSWORD: ${COPART_PASSWORD}
+      IAAI_USERNAME: ${IAAI_USERNAME}
+      IAAI_PASSWORD: ${IAAI_PASSWORD}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./keys:/app/keys
+    networks:
+      - backend-network
+
+networks:
+  backend-network:
+    driver: bridge

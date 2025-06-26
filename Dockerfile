@@ -1,13 +1,10 @@
-FROM node:20
+FROM mcr.microsoft.com/playwright:v1.50.0-noble
 
 WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
-
-# Install Playwright and browsers
-RUN npx playwright install --with-deps chromium
 
 # Copy the rest of the application
 COPY . .
