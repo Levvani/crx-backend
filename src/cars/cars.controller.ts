@@ -136,6 +136,8 @@ export class CarsController {
         shippingLine: car.shippingLine || null,
         containerNumber: car.containerNumber || null,
         toBePaid: car.toBePaid || null,
+        isTaken: car.isTaken || false,
+        isOverized: car.isOverized || false,
         image:
           car.photos && car.photos.length > 0
             ? car.photos[0]
@@ -196,6 +198,8 @@ export class CarsController {
       auctionFine: car.auctionFine ?? 0,
       financingAmount: car.financingAmount ?? 0,
       profit: car.profit ?? 0,
+      isTaken: car.isTaken || false,
+      isOverized: car.isOverized || false,
 
       // Keep the image field from your original response
       image:

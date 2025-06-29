@@ -96,6 +96,12 @@ export class Car {
 
   @Prop({ type: [String], default: [] })
   photos: string[];
+
+  @Prop({ required: false, default: false })
+  isTaken: boolean;
+
+  @Prop({ required: false, default: false })
+  isOverized: boolean;
 }
 
 export const CarSchema = SchemaFactory.createForClass(Car);

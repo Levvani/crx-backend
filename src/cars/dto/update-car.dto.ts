@@ -117,4 +117,12 @@ export class UpdateCarDto {
   @IsOptional()
   @IsArray()
   photos?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isTaken?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isOverized?: boolean;
 }
