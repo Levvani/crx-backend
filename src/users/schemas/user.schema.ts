@@ -1,6 +1,6 @@
 // src/users/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -10,6 +10,7 @@ export enum UserRole {
 }
 
 export interface RefreshToken {
+  _id?: Types.ObjectId; // MongoDB automatically adds this to array objects
   token: string;
   expiresAt: Date;
 }

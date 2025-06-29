@@ -36,12 +36,36 @@ export class CarsController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'photos', maxCount: 10 }]))
   async create(
-    @Body() createCarDto: CreateCarDto,
+    @Body(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    )
+    createCarDto: CreateCarDto,
     @UploadedFiles() files: { photos?: Express.Multer.File[] },
   ): Promise<Car> {
     // Debug logging
+    console.log('=== CREATE CAR DEBUG ===');
     console.log('Received files:', files);
     console.log('Files.photos:', files?.photos);
+    console.log('Raw DTO before transformation:', createCarDto);
+    console.log(
+      'auctionPrice type:',
+      typeof createCarDto.auctionPrice,
+      'value:',
+      createCarDto.auctionPrice,
+    );
+    console.log(
+      'transportationPrice type:',
+      typeof createCarDto.transportationPrice,
+      'value:',
+      createCarDto.transportationPrice,
+    );
+    console.log('totalCost type:', typeof createCarDto.totalCost, 'value:', createCarDto.totalCost);
+    console.log('=== END DEBUG ===');
 
     // Ensure we have an array of files, even if empty
     const photos = files?.photos || [];
@@ -56,11 +80,20 @@ export class CarsController {
   @UseInterceptors(FileFieldsInterceptor([{ name: 'photos', maxCount: 10 }]))
   async update(
     @Param('carID', ParseIntPipe) carID: number,
-    @Body() updateCarDto: UpdateCarDto,
+    @Body(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    )
+    updateCarDto: UpdateCarDto,
     @UploadedFiles() files: { photos?: Express.Multer.File[] },
   ): Promise<Car> {
     // Ensure we have an array of files, even if empty
     const photos = files?.photos || [];
+    console.log('Update DTO:', updateCarDto);
     return this.carsService.update(carID, updateCarDto as CreateCarDto, photos);
   }
 
@@ -137,7 +170,8 @@ export class CarsController {
         containerNumber: car.containerNumber || null,
         toBePaid: car.toBePaid || null,
         isTaken: car.isTaken || false,
-        isOverized: car.isOverized || false,
+        isOversized: car.isOversized || false,
+        dateOfContainerOpening: car.dateOfContainerOpening || null,
         image:
           car.photos && car.photos.length > 0
             ? car.photos[0]
@@ -199,7 +233,7 @@ export class CarsController {
       financingAmount: car.financingAmount ?? 0,
       profit: car.profit ?? 0,
       isTaken: car.isTaken || false,
-      isOverized: car.isOverized || false,
+      isOversized: car.isOversized || false,
 
       // Keep the image field from your original response
       image:

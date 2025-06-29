@@ -101,7 +101,7 @@ export class Car {
   isTaken: boolean;
 
   @Prop({ required: false, default: false })
-  isOverized: boolean;
+  isOversized: boolean;
 }
 
 export const CarSchema = SchemaFactory.createForClass(Car);

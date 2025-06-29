@@ -1,9 +1,13 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { BogApiService } from './bog-api.service';
+import { BogApiCronService } from './bog-api-cron.service';
 
 @Controller('bog-api')
 export class BogApiController {
-  constructor(private readonly bogApiService: BogApiService) {}
+  constructor(
+    private readonly bogApiService: BogApiService,
+    private readonly bogApiCronService: BogApiCronService,
+  ) {}
 
   @Get('getStatement')
   async getStatement(
@@ -13,5 +17,10 @@ export class BogApiController {
     @Query('endDate') endDate?: string,
   ): Promise<any> {
     return this.bogApiService.getStatement(accountNumber, currency, startDate, endDate);
+  }
+
+  @Post('trigger-cron')
+  async triggerCron(): Promise<any> {
+    return this.bogApiCronService.triggerBogApiStatement();
   }
 }

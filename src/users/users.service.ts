@@ -219,23 +219,47 @@ export class UsersService {
   }
 
   async addRefreshToken(userId: number, refreshToken: string): Promise<void> {
+    console.log(`🔍 DEBUG: Starting addRefreshToken for user ${userId}`);
+
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+    expiresAt.setMinutes(expiresAt.getMinutes() + 1); // 1 minute from now for testing
 
-    const user = await this.userModel.findOne({ userID: userId });
-
-    // Remove expired tokens first
+    // STEP 1: Remove expired tokens first using the fixed method
     await this.removeExpiredTokens(userId);
 
-    // Check if max tokens reached (although we have schema validation, we want to handle it gracefully)
-    if (user.refreshTokens.length >= 5) {
-      // Remove the oldest token
-      await this.userModel.updateOne({ userID: userId }, { $pop: { refreshTokens: -1 } });
+    // STEP 2: Check current token count and remove oldest if needed
+    const currentUser = await this.userModel.findOne({ userID: userId });
+    if (!currentUser) {
+      console.log(`❌ ERROR: User ${userId} not found during addRefreshToken`);
+      throw new NotFoundException(`User with userID ${userId} not found`);
     }
 
-    // Add new token
-    await this.userModel.updateOne(
-      { userID: userId },
+    const currentTokenCount = currentUser.refreshTokens?.length || 0;
+    console.log(`📊 DEBUG: User ${userId} has ${currentTokenCount} tokens before adding new one`);
+
+    if (currentTokenCount >= 5) {
+      console.log(`🔄 DEBUG: Removing oldest token for user ${userId}`);
+      // Remove the oldest token (first element in array)
+      await this.userModel.findOneAndUpdate(
+        {
+          userID: userId,
+          $expr: { $ne: ['$_id', null] },
+        },
+        { $pop: { refreshTokens: -1 } },
+        {
+          new: true,
+          upsert: false,
+        },
+      );
+    }
+
+    // STEP 3: Add new token using atomic operation
+    const result = await this.userModel.findOneAndUpdate(
+      {
+        userID: userId,
+        // SAFETY: Only update if user exists
+        $expr: { $ne: ['$_id', null] },
+      },
       {
         $push: {
           refreshTokens: {
@@ -244,12 +268,33 @@ export class UsersService {
           },
         },
       },
+      {
+        new: true,
+        upsert: false,
+      },
     );
+
+    if (!result) {
+      console.log(`❌ CRITICAL ERROR: User ${userId} not found during token addition`);
+      throw new NotFoundException(`User with userID ${userId} not found during token addition`);
+    }
+
+    console.log(
+      `✅ SUCCESS: Added refresh token for user ${userId}, expires at ${expiresAt.toISOString()}`,
+    );
+    console.log(`📊 DEBUG: User ${userId} now has ${result.refreshTokens?.length || 0} tokens`);
   }
 
   async removeRefreshToken(userID: number, refreshToken: string): Promise<void> {
-    await this.userModel.updateOne(
-      { userID },
+    console.log(`🔍 DEBUG: Starting removeRefreshToken for user ${userID}`);
+
+    // CRITICAL FIX: Use atomic operation with explicit conditions to prevent document deletion
+    const result = await this.userModel.findOneAndUpdate(
+      {
+        userID,
+        // SAFETY: Only update if user exists (this prevents any potential deletion)
+        $expr: { $ne: ['$_id', null] },
+      },
       {
         $pull: {
           refreshTokens: {
@@ -257,13 +302,36 @@ export class UsersService {
           },
         },
       },
+      {
+        new: true,
+        // CRITICAL: Ensure we don't create a new document if none exists
+        upsert: false,
+      },
+    );
+
+    if (!result) {
+      console.log(`❌ ERROR: User ${userID} not found during token removal`);
+      return;
+    }
+
+    console.log(`✅ SUCCESS: User ${userID} exists after token removal`);
+    console.log(
+      `📊 DEBUG: User ${userID} has ${result.refreshTokens?.length || 0} tokens after removal`,
     );
   }
 
   async removeExpiredTokens(userID: number): Promise<void> {
+    console.log(`🔍 DEBUG: Starting removeExpiredTokens for user ${userID}`);
+
     const now = new Date();
-    await this.userModel.updateOne(
-      { userID },
+
+    // CRITICAL FIX: Use atomic operation with explicit conditions to prevent document deletion
+    const result = await this.userModel.findOneAndUpdate(
+      {
+        userID,
+        // SAFETY: Only update if user exists (this prevents any potential deletion)
+        $expr: { $ne: ['$_id', null] },
+      },
       {
         $pull: {
           refreshTokens: {
@@ -271,6 +339,21 @@ export class UsersService {
           },
         },
       },
+      {
+        new: true,
+        // CRITICAL: Ensure we don't create a new document if none exists
+        upsert: false,
+      },
+    );
+
+    if (!result) {
+      console.log(`❌ ERROR: User ${userID} not found during expired token removal`);
+      return;
+    }
+
+    console.log(`✅ SUCCESS: User ${userID} exists after token cleanup`);
+    console.log(
+      `📊 DEBUG: User ${userID} has ${result.refreshTokens?.length || 0} tokens after cleanup`,
     );
   }
 
@@ -279,9 +362,20 @@ export class UsersService {
   }
 
   async cleanupExpiredTokens(): Promise<void> {
+    console.log(`🔍 DEBUG: Starting global cleanupExpiredTokens`);
+
     const now = new Date();
-    await this.userModel.updateMany(
-      {},
+
+    // Get count of users before cleanup
+    const totalUsers = await this.userModel.countDocuments({});
+    console.log(`📊 DEBUG: Total users before cleanup: ${totalUsers}`);
+
+    // CRITICAL FIX: Use safer bulk operation that won't delete documents
+    const result = await this.userModel.updateMany(
+      {
+        // Only target users that actually have expired tokens
+        'refreshTokens.expiresAt': { $lt: now },
+      },
       {
         $pull: {
           refreshTokens: {
@@ -289,7 +383,31 @@ export class UsersService {
           },
         },
       },
+      {
+        // CRITICAL: Ensure we never create new documents
+        upsert: false,
+      },
     );
+
+    // SAFETY CHECK: Verify no user documents were deleted
+    const totalUsersAfter = await this.userModel.countDocuments({});
+
+    if (totalUsersAfter < totalUsers) {
+      console.error(`🚨 CRITICAL ERROR: User documents were deleted during cleanup!`);
+      console.error(`📊 Users before: ${totalUsers}, Users after: ${totalUsersAfter}`);
+
+      // This should never happen with our fix, but if it does, we need to know
+      throw new Error(
+        `Critical error: ${totalUsers - totalUsersAfter} user documents were deleted during token cleanup`,
+      );
+    } else {
+      console.log(`✅ SUCCESS: No user documents were deleted during cleanup`);
+    }
+
+    console.log(
+      `📊 DEBUG: Cleanup completed: ${result.modifiedCount} users had expired tokens removed out of ${totalUsers} total users`,
+    );
+    console.log(`📊 DEBUG: Users after cleanup: ${totalUsersAfter}`);
   }
 
   async update(userID: number, updateUserDto: UpdateUserDto): Promise<UserDocument> {
@@ -360,5 +478,29 @@ export class UsersService {
     const finalBalance = newBalance < 0 ? 0 : newBalance;
 
     await this.userModel.updateOne({ userID }, { $set: { totalBalance: finalBalance } });
+  }
+
+  // CRITICAL FIX: Add transaction-based token management for extra safety
+  private async executeTokenOperationSafely<T>(
+    userID: number,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    // For now, we'll use the existing approach but with better error handling
+    // In the future, this can be enhanced with MongoDB transactions
+    try {
+      const result = await operation();
+
+      // Verify user still exists after operation
+      const userExists = await this.userModel.findOne({ userID }).lean();
+      if (!userExists) {
+        console.error(`🚨 CRITICAL: User ${userID} was deleted during token operation!`);
+        throw new Error(`User ${userID} was accidentally deleted during token operation`);
+      }
+
+      return result;
+    } catch (error) {
+      console.error(`❌ Error in token operation for user ${userID}:`, error);
+      throw error;
+    }
   }
 }

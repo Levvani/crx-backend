@@ -307,8 +307,8 @@ export class BogApiService {
   async getStatement(
     accountNumber: string = 'GE40BG0000000498826082',
     currency: string = 'USD',
-    startDate: string = '2025-05-01',
-    endDate: string = '2025-05-30',
+    startDate: string = '2025-06-01',
+    endDate: string = '2025-06-30',
   ): Promise<StatementResponse> {
     try {
       const headers = await this.getAuthHeaders();

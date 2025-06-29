@@ -110,7 +110,7 @@ export class CarsService {
       // Use values from DTO or defaults
       transportationPrice: createCarDto.transportationPrice || 0,
       totalCost: createCarDto.totalCost || 0,
-      toBePaid: createCarDto.toBePaid || 0,
+      toBePaid: (createCarDto.totalCost || 0) - (createCarDto.paid || 0),
       profit: calculatedProfit, // Use calculated profit instead of DTO value
     });
 
@@ -338,7 +338,45 @@ export class CarsService {
   }
 
   async delete(carID: number): Promise<CarDocument> {
-    return this.carModel.findOneAndDelete({ carID }).exec();
+    // First, find the car to get its details before deletion
+    const car = await this.carModel.findOne({ carID }).exec();
+    if (!car) {
+      throw new NotFoundException(`Car with ID ${carID} not found`);
+    }
+
+    // Check if the car has toBePaid > 0 and deduct from user's totalBalance
+    const toBePaid = car.toBePaid || 0;
+    if (toBePaid > 0) {
+      try {
+        const user = await this.usersService.findByUsername(car.username);
+        const currentTotalBalance = user.totalBalance || 0;
+        const newTotalBalance = currentTotalBalance - toBePaid;
+
+        // Update user's total balance
+        await this.usersService.update(user.userID, {
+          totalBalance: newTotalBalance,
+        });
+
+        console.log(
+          `Deleted car ${carID} with toBePaid ${toBePaid}. User ${car.username} totalBalance: ${currentTotalBalance} -> ${newTotalBalance}`,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to update total balance for user ${car.username} during car deletion:`,
+          error,
+        );
+        // Continue with deletion even if user balance update fails
+      }
+    }
+
+    // Delete the car
+    const deletedCar = await this.carModel.findOneAndDelete({ carID }).exec();
+
+    if (!deletedCar) {
+      throw new NotFoundException(`Car with ID ${carID} not found during deletion`);
+    }
+
+    return deletedCar;
   }
 
   async findOne(carID: number): Promise<CarDocument> {

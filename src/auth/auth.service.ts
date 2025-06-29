@@ -12,7 +12,6 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { User, UserRole } from '../users/schemas/user.schema';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
-import { Cron } from '@nestjs/schedule';
 
 // Define the interface for the user object as received from the JWT strategy
 interface JwtUser {
@@ -38,18 +37,21 @@ export class AuthService implements OnModuleInit {
     private configService: ConfigService,
   ) {}
 
-  async onModuleInit() {
-    // Clean up expired tokens on startup
-    await this.cleanupExpiredTokens();
+  onModuleInit() {
+    // Clean up expired tokens on startup - TEMPORARILY DISABLED FOR TESTING
+    this.cleanupExpiredTokens();
   }
 
-  @Cron('0 0 * * *') // Run at midnight every day
-  async cleanupExpiredTokens() {
-    try {
-      await this.usersService.cleanupExpiredTokens();
-    } catch {
-      // Error during token cleanup - no need to log in production
-    }
+  // @Cron('0 0 * * *') // Run at midnight every day - TEMPORARILY DISABLED FOR TESTING
+  cleanupExpiredTokens() {
+    console.log(`🚫 DEBUG: Automatic cleanup disabled for testing`);
+    return;
+
+    // try {
+    //   await this.usersService.cleanupExpiredTokens();
+    // } catch {
+    //   // Error during token cleanup - no need to log in production
+    // }
   }
 
   async validateUser(username: string, password: string): Promise<Partial<User> | null> {
@@ -91,7 +93,7 @@ export class AuthService implements OnModuleInit {
       httpOnly: true,
       secure: false, // Set to false for local testing
       sameSite: 'lax' as const, // Changed from 'strict' to 'lax' for testing
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 60 * 1000, // 1 minute for testing
       path: '/', // Changed from '/auth/refresh' to '/' for testing
     };
 
@@ -119,7 +121,7 @@ export class AuthService implements OnModuleInit {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict' as const,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 60 * 1000, // 1 minute for testing
       path: '/auth/refresh',
     };
 
@@ -232,7 +234,7 @@ export class AuthService implements OnModuleInit {
   generateRefreshToken(payload: JwtPayload): string {
     return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: '7d', // Refresh token lasts longer than access token
+      expiresIn: '1m', // 1 minute for testing
     });
   }
 

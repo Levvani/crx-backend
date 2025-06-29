@@ -96,3 +96,47 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+# Backend API
+
+## Features
+
+### BOG API Integration
+
+The application includes integration with BOG (Bank of Georgia) API for automatic statement processing:
+
+#### Cron Job
+
+- **Automatic Statement Processing**: Runs every 10 minutes to fetch and process bank statements
+- **Dynamic Date Range**: Uses previous day as start date and current day as end date (YYYY-MM-DD format)
+- **Configurable**: Account number and currency can be configured via environment variables
+
+#### Environment Variables
+
+```bash
+# BOG API Configuration
+BOG_ACCOUNT_NUMBER=GE40BG0000000498826082
+BOG_CURRENCY=USD
+```
+
+#### Manual Testing
+
+You can manually trigger the cron job for testing:
+
+```bash
+POST /bog-api/trigger-cron
+```
+
+#### API Endpoints
+
+- `GET /bog-api/getStatement` - Fetch bank statement with optional parameters
+- `POST /bog-api/trigger-cron` - Manually trigger the statement processing cron job
+
+#### Logging
+
+The cron job provides detailed logging including:
+
+- Execution timestamps
+- Processing duration
+- Number of records processed
+- Error details with API response information
