@@ -7,51 +7,53 @@ export class CopartService {
 
   // Initialize browser with Docker-friendly settings
   private async getBrowser(): Promise<Browser> {
-    if (!this.browser) {
-      console.log('🔍 Initializing Playwright browser...');
+    // Always create a fresh browser for each request to avoid state issues
+    if (this.browser) {
       try {
-        this.browser = await chromium.launch({
-          headless: true,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process', // This helps in Docker
-            '--disable-gpu',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding',
-            '--disable-features=TranslateUI',
-            '--disable-extensions',
-            '--disable-default-apps',
-            '--disable-sync',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor',
-            '--memory-pressure-off'
-          ],
-          // Add extra timeouts for Docker environment
-          timeout: 60000, // 60 seconds timeout for browser launch
-        });
-        console.log('✅ Browser initialized successfully');
+        await this.browser.close();
       } catch (error) {
-        console.error('❌ Failed to initialize browser:', error);
-        throw error;
+        console.error('⚠️ Error closing existing browser:', error);
       }
+      this.browser = null;
     }
-    return this.browser;
+
+    console.log('🔍 Creating fresh browser instance...');
+    try {
+      this.browser = await chromium.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process', // This helps in Docker
+          '--disable-gpu',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+        ],
+      });
+      console.log('✅ Fresh browser instance created successfully');
+      return this.browser;
+    } catch (error) {
+      console.error('❌ Failed to initialize browser:', error);
+      throw error;
+    }
   }
 
   async getCarDetailsByLot(lotNumber: string) {
     let page: Page | null = null;
     let context: BrowserContext | null = null;
+    let browser: Browser | null = null;
 
     try {
       console.log(`🔍 Fetching car details for lot: ${lotNumber}`);
 
-      const browser = await this.getBrowser();
+      // Get a fresh browser instance for each request
+      browser = await this.getBrowser();
+
       context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         // Add viewport to simulate real browser
@@ -65,20 +67,22 @@ export class CopartService {
           'Connection': 'keep-alive',
           'Upgrade-Insecure-Requests': '1',
         },
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        viewport: { width: 1280, height: 720 },
       });
 
       page = await context.newPage();
 
-      // Set longer timeouts for network requests
-      page.setDefaultTimeout(60000); // 60 seconds
-      page.setDefaultNavigationTimeout(60000); // 60 seconds
+      // Set shorter timeouts for faster failure detection
+      page.setDefaultTimeout(20000); // 20 seconds
 
       const url = `https://www.copart.com/public/data/lotdetails/solr/${lotNumber}`;
       console.log(`🌐 Navigating to: ${url}`);
 
-      const response = await page.goto(url, {
-        waitUntil: 'networkidle',
-        timeout: 60000,
+      await page.goto(url, {
+        waitUntil: 'domcontentloaded', // Changed from 'networkidle' for faster loading
+        timeout: 20000,
       });
 
       // Check if the page loaded successfully
@@ -92,24 +96,8 @@ export class CopartService {
 
       console.log('📄 Page loaded, extracting data...');
 
-      // Wait for content to be available
-      await page.waitForTimeout(2000);
-
-      // Try multiple selectors to find the JSON data
-      let rawData: string | null = null;
-      
-      try {
-        // Try to get the JSON data from the page
-        rawData = await page.getByText('{"returnCode":1,"').textContent();
-      } catch (e) {
-        console.log('Primary selector failed, trying alternative method...');
-        // Alternative: get all text content and search for JSON
-        const bodyText = await page.textContent('body');
-        const jsonMatch = bodyText?.match(/\{"returnCode":1,[\s\S]*?\}/);
-        if (jsonMatch) {
-          rawData = jsonMatch[0];
-        }
-      }
+      // Wait for and extract the data
+      const rawData = await page.getByText('{"returnCode":1,"').textContent({ timeout: 10000 });
 
       console.log(`📊 Raw data extracted: ${rawData ? 'success' : 'no data found'}`);
 
@@ -147,23 +135,48 @@ export class CopartService {
       console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       throw new Error(`Failed to fetch car details: ${errorMessage}`);
     } finally {
-      // Clean up resources
+      // CRITICAL: Aggressive cleanup to prevent resource leaks
+      console.log('🧹 Starting resource cleanup...');
+
       if (page) {
         try {
           await page.close();
-          console.log('🧹 Page closed');
+          console.log('✅ Page closed successfully');
         } catch (closeError) {
           console.error('⚠️ Error closing page:', closeError);
         }
       }
+
       if (context) {
         try {
           await context.close();
-          console.log('🧹 Context closed');
+          console.log('✅ Context closed successfully');
         } catch (closeError) {
           console.error('⚠️ Error closing context:', closeError);
         }
       }
+
+      if (browser) {
+        try {
+          await browser.close();
+          console.log('✅ Browser closed successfully');
+        } catch (closeError) {
+          console.error('⚠️ Error closing browser:', closeError);
+        }
+      }
+
+      // Reset the browser reference
+      this.browser = null;
+      console.log('🧹 Resource cleanup completed');
+
+      // Force garbage collection if available (Node.js with --expose-gc flag)
+      if (global.gc) {
+        global.gc();
+        console.log('🗑️ Forced garbage collection');
+      }
+
+      // Small delay to ensure cleanup is complete
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 
@@ -177,19 +190,37 @@ export class CopartService {
       } catch (error) {
         console.error('⚠️ Error closing browser on shutdown:', error);
       }
+      try {
+        await this.browser.close();
+      } catch (error) {
+        console.error('Error during shutdown cleanup:', error);
+      }
+      this.browser = null;
     }
   }
 
   // Health check method to test browser initialization
   async testBrowserConnection(): Promise<boolean> {
+    let testBrowser: Browser | null = null;
     try {
       console.log('🔍 Testing browser connection...');
-      await this.getBrowser();
+      testBrowser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
       console.log('✅ Browser connection test successful');
       return true;
     } catch (error) {
       console.error('❌ Browser connection test failed:', error);
       return false;
+    } finally {
+      if (testBrowser) {
+        try {
+          await testBrowser.close();
+        } catch (closeError) {
+          console.error('Error closing test browser:', closeError);
+        }
+      }
     }
   }
 }

@@ -6,7 +6,18 @@ import { CopartService } from './copart.service';
 @Module({
   imports: [HttpModule],
   controllers: [CopartController],
-  providers: [CopartService],
+  providers: [
+    {
+      provide: CopartService,
+      useClass: CopartService,
+    },
+  ],
   exports: [CopartService],
 })
-export class CopartModule {}
+export class CopartModule {
+  constructor(private readonly copartService: CopartService) {}
+
+  async onModuleDestroy() {
+    await this.copartService.onApplicationShutdown();
+  }
+}
