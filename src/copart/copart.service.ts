@@ -55,18 +55,6 @@ export class CopartService {
       browser = await this.getBrowser();
 
       context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        // Add viewport to simulate real browser
-        viewport: { width: 1920, height: 1080 },
-        // Add extra headers to avoid detection
-        extraHTTPHeaders: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'DNT': '1',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-        },
         userAgent:
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         viewport: { width: 1280, height: 720 },
@@ -85,14 +73,6 @@ export class CopartService {
         timeout: 20000,
       });
 
-      // Check if the page loaded successfully
-      if (!response) {
-        throw new Error('Failed to load page - no response received');
-      }
-
-      if (!response.ok()) {
-        throw new Error(`HTTP ${response.status()}: ${response.statusText()}`);
-      }
 
       console.log('📄 Page loaded, extracting data...');
 
@@ -101,29 +81,25 @@ export class CopartService {
 
       console.log(`📊 Raw data extracted: ${rawData ? 'success' : 'no data found'}`);
 
-      if (!rawData) {
-        throw new Error('No JSON data found on the page');
-      }
 
       // Convert string to JSON
       let jsonData = null;
-      try {
-        jsonData = JSON.parse(rawData) as Record<string, unknown>;
-        console.log('✅ JSON parsed successfully');
-      } catch (parseError) {
-        console.error('❌ Error parsing JSON:', parseError);
-        // Try to extract valid JSON from the string if it contains extra text
-        const jsonMatch = rawData.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            jsonData = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
-            console.log('✅ JSON extracted and parsed successfully');
-          } catch (extractError) {
-            console.error('❌ Error parsing extracted JSON:', extractError);
-            throw new Error(`Failed to parse JSON data: ${extractError.message}`);
+      if (rawData) {
+        try {
+          jsonData = JSON.parse(rawData) as Record<string, unknown>;
+          console.log('✅ JSON parsed successfully');
+        } catch (parseError) {
+          console.error('❌ Error parsing JSON:', parseError);
+          // Try to extract valid JSON from the string if it contains extra text
+          const jsonMatch = rawData.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              jsonData = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+              console.log('✅ JSON extracted and parsed successfully');
+            } catch (extractError) {
+              console.error('❌ Error parsing extracted JSON:', extractError);
+            }
           }
-        } else {
-          throw new Error('Could not extract valid JSON from response');
         }
       }
 
@@ -183,13 +159,6 @@ export class CopartService {
   // Add a cleanup method to be called when the application shuts down
   async onApplicationShutdown() {
     if (this.browser) {
-      try {
-        await this.browser.close();
-        this.browser = null;
-        console.log('🧹 Browser closed on application shutdown');
-      } catch (error) {
-        console.error('⚠️ Error closing browser on shutdown:', error);
-      }
       try {
         await this.browser.close();
       } catch (error) {
