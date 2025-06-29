@@ -21,7 +21,19 @@ export class CopartService {
             '--no-zygote',
             '--single-process', // This helps in Docker
             '--disable-gpu',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-features=TranslateUI',
+            '--disable-extensions',
+            '--disable-default-apps',
+            '--disable-sync',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--memory-pressure-off'
           ],
+          // Add extra timeouts for Docker environment
+          timeout: 60000, // 60 seconds timeout for browser launch
         });
         console.log('✅ Browser initialized successfully');
       } catch (error) {
@@ -41,48 +53,89 @@ export class CopartService {
 
       const browser = await this.getBrowser();
       context = await browser.newContext({
-        userAgent:
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        // Add viewport to simulate real browser
+        viewport: { width: 1920, height: 1080 },
+        // Add extra headers to avoid detection
+        extraHTTPHeaders: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+        },
       });
 
       page = await context.newPage();
 
-      // Set timeouts
-      page.setDefaultTimeout(30000); // 30 seconds
+      // Set longer timeouts for network requests
+      page.setDefaultTimeout(60000); // 60 seconds
+      page.setDefaultNavigationTimeout(60000); // 60 seconds
 
       const url = `https://www.copart.com/public/data/lotdetails/solr/${lotNumber}`;
       console.log(`🌐 Navigating to: ${url}`);
 
-      await page.goto(url, {
+      const response = await page.goto(url, {
         waitUntil: 'networkidle',
-        timeout: 30000,
+        timeout: 60000,
       });
+
+      // Check if the page loaded successfully
+      if (!response) {
+        throw new Error('Failed to load page - no response received');
+      }
+
+      if (!response.ok()) {
+        throw new Error(`HTTP ${response.status()}: ${response.statusText()}`);
+      }
 
       console.log('📄 Page loaded, extracting data...');
 
-      // Wait for and extract the data
-      const rawData = await page.getByText('{"returnCode":1,"').textContent();
+      // Wait for content to be available
+      await page.waitForTimeout(2000);
+
+      // Try multiple selectors to find the JSON data
+      let rawData: string | null = null;
+      
+      try {
+        // Try to get the JSON data from the page
+        rawData = await page.getByText('{"returnCode":1,"').textContent();
+      } catch (e) {
+        console.log('Primary selector failed, trying alternative method...');
+        // Alternative: get all text content and search for JSON
+        const bodyText = await page.textContent('body');
+        const jsonMatch = bodyText?.match(/\{"returnCode":1,[\s\S]*?\}/);
+        if (jsonMatch) {
+          rawData = jsonMatch[0];
+        }
+      }
 
       console.log(`📊 Raw data extracted: ${rawData ? 'success' : 'no data found'}`);
 
+      if (!rawData) {
+        throw new Error('No JSON data found on the page');
+      }
+
       // Convert string to JSON
       let jsonData = null;
-      if (rawData) {
-        try {
-          jsonData = JSON.parse(rawData) as Record<string, unknown>;
-          console.log('✅ JSON parsed successfully');
-        } catch (parseError) {
-          console.error('❌ Error parsing JSON:', parseError);
-          // Try to extract valid JSON from the string if it contains extra text
-          const jsonMatch = rawData.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            try {
-              jsonData = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
-              console.log('✅ JSON extracted and parsed successfully');
-            } catch (extractError) {
-              console.error('❌ Error parsing extracted JSON:', extractError);
-            }
+      try {
+        jsonData = JSON.parse(rawData) as Record<string, unknown>;
+        console.log('✅ JSON parsed successfully');
+      } catch (parseError) {
+        console.error('❌ Error parsing JSON:', parseError);
+        // Try to extract valid JSON from the string if it contains extra text
+        const jsonMatch = rawData.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            jsonData = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+            console.log('✅ JSON extracted and parsed successfully');
+          } catch (extractError) {
+            console.error('❌ Error parsing extracted JSON:', extractError);
+            throw new Error(`Failed to parse JSON data: ${extractError.message}`);
           }
+        } else {
+          throw new Error('Could not extract valid JSON from response');
         }
       }
 
@@ -117,8 +170,13 @@ export class CopartService {
   // Add a cleanup method to be called when the application shuts down
   async onApplicationShutdown() {
     if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
+      try {
+        await this.browser.close();
+        this.browser = null;
+        console.log('🧹 Browser closed on application shutdown');
+      } catch (error) {
+        console.error('⚠️ Error closing browser on shutdown:', error);
+      }
     }
   }
 
