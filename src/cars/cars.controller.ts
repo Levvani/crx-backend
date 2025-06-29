@@ -15,7 +15,7 @@ import {
   Request,
   ForbiddenException,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { CarsService } from './cars.service';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
@@ -26,7 +26,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
-import { multerOptions } from '../config/multer.config';
 
 @Controller('cars')
 export class CarsController {
@@ -35,23 +34,34 @@ export class CarsController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  @UseInterceptors(FilesInterceptor('photos', 10, multerOptions))
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'photos', maxCount: 10 }]))
   async create(
     @Body() createCarDto: CreateCarDto,
-    @UploadedFiles() photos: Express.Multer.File[],
+    @UploadedFiles() files: { photos?: Express.Multer.File[] },
   ): Promise<Car> {
+    // Debug logging
+    console.log('Received files:', files);
+    console.log('Files.photos:', files?.photos);
+
+    // Ensure we have an array of files, even if empty
+    const photos = files?.photos || [];
+    console.log('Photos to be processed:', photos);
+
     return this.carsService.create(createCarDto, photos);
   }
 
   @Put(':carID')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  @UseInterceptors(FilesInterceptor('photos', 10, multerOptions))
+  @UseInterceptors(FileFieldsInterceptor([{ name: 'photos', maxCount: 10 }]))
   async update(
     @Param('carID', ParseIntPipe) carID: number,
     @Body() updateCarDto: UpdateCarDto,
+    @UploadedFiles() files: { photos?: Express.Multer.File[] },
   ): Promise<Car> {
-    return this.carsService.update(carID, updateCarDto as CreateCarDto);
+    // Ensure we have an array of files, even if empty
+    const photos = files?.photos || [];
+    return this.carsService.update(carID, updateCarDto as CreateCarDto, photos);
   }
 
   @Get()
@@ -126,7 +136,11 @@ export class CarsController {
         shippingLine: car.shippingLine || null,
         containerNumber: car.containerNumber || null,
         balanceOfCar: 0, // Set to 0 by default as requested
-        image: '/assets/car-logo-icon-emblem-design-600nw-473088037.webp', // Use the image from assets folder
+        image:
+          car.photos && car.photos.length > 0
+            ? car.photos[0]
+            : '/assets/car-logo-icon-emblem-design-600nw-473088037.webp',
+        photos: car.photos || [], // Add the photos array
       };
     });
 
@@ -184,7 +198,11 @@ export class CarsController {
       profit: car.profit ?? 0,
 
       // Keep the image field from your original response
-      image: '/assets/car-logo-icon-emblem-design-600nw-473088037.webp',
+      image:
+        car.photos && car.photos.length > 0
+          ? car.photos[0]
+          : '/assets/car-logo-icon-emblem-design-600nw-473088037.webp',
+      photos: car.photos || [], // Add the photos array
       // Remove balanceOfCar as it's being replaced by paymentLeft
       // balanceOfCar: 0,
     };

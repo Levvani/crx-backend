@@ -6,7 +6,7 @@ import { CreateDamageDto } from './dto/create-damage.dto';
 import { UpdateDamageDto } from './dto/update-damage.dto';
 import { UsersService } from '../users/users.service';
 import { CarsService } from '../cars/cars.service';
-import { StorageService } from '../config/storage.service';
+import { StorageFactoryService } from '../config/storage-factory.service';
 
 @Injectable()
 export class DamagesService {
@@ -14,7 +14,7 @@ export class DamagesService {
     @InjectModel(Damage.name) private damageModel: Model<DamageDocument>,
     private usersService: UsersService,
     private carsService: CarsService,
-    private storageService: StorageService,
+    private storageFactoryService: StorageFactoryService,
   ) {}
 
   async create(
@@ -53,14 +53,16 @@ export class DamagesService {
     const highestDamage = await this.damageModel.findOne().sort({ damageID: -1 }).exec();
     const nextDamageID = highestDamage ? highestDamage.damageID + 1 : 1;
 
-    // Upload files to GCS if provided
+    // Upload files to storage if provided
     let imageUrl: string | null = null;
     const imageUrls: string[] = [];
 
     if (files && files.length > 0) {
       try {
+        const storageService = this.storageFactoryService.getStorageService();
+
         // Process each file and get URLs
-        const uploadPromises = files.map((file) => this.storageService.uploadFile(file));
+        const uploadPromises = files.map((file) => storageService.uploadFile(file, 'damages'));
         const uploadedUrls = await Promise.all(uploadPromises);
 
         // Store all URLs
@@ -92,6 +94,7 @@ export class DamagesService {
       imageUrl,
       imageUrls,
       filesCount: files?.length,
+      storageProvider: this.storageFactoryService.getCurrentProvider(),
     });
 
     return newDamage.save();

@@ -3,9 +3,10 @@ import { Storage } from '@google-cloud/storage';
 import { v4 as uuid } from 'uuid';
 import { extname } from 'path';
 import { ConfigService } from '@nestjs/config';
+import { IStorageService } from './storage.interface';
 
 @Injectable()
-export class StorageService {
+export class StorageService implements IStorageService {
   private storage: Storage;
   private bucket: string;
 
@@ -25,12 +26,12 @@ export class StorageService {
     this.bucket = this.configService.get('GCS_BUCKET_NAME') || 'default-bucket';
   }
 
-  async uploadFile(file: Express.Multer.File): Promise<string> {
+  async uploadFile(file: Express.Multer.File, folder: string = 'damages'): Promise<string> {
     if (!file) {
       throw new Error('No file provided');
     }
 
-    const fileName = `damages/${uuid()}${extname(file.originalname)}`;
+    const fileName = `${folder}/${uuid()}${extname(file.originalname)}`;
     const fileUpload = this.storage.bucket(this.bucket).file(fileName);
 
     const stream = fileUpload.createWriteStream({

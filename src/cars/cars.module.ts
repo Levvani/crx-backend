@@ -7,6 +7,7 @@ import { UsersModule } from '../users/users.module';
 import { SmsModule } from '../sms/sms.module';
 import { PricesModule } from '../prices/prices.module';
 import { AuthModule } from '../auth/auth.module';
+import { StorageModule } from '../config/storage.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AuthModule } from '../auth/auth.module';
     SmsModule,
     PricesModule,
     AuthModule,
+    StorageModule,
   ],
   controllers: [CarsController],
   providers: [CarsService],

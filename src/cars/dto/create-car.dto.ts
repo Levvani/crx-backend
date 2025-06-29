@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsBoolean,
   IsEnum,
+  IsArray,
 } from 'class-validator';
 import { CarStatus } from '../schemas/car.schema';
 
@@ -125,4 +126,8 @@ export class CreateCarDto {
   @IsNumber()
   @Min(0)
   profit: number;
+
+  @IsOptional()
+  @IsArray()
+  photos: string[];
 }

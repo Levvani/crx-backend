@@ -4,11 +4,13 @@ import { NotificationController } from './notification.controller';
 import { NotificationService } from './notification.service';
 import { Notification, NotificationSchema } from './schemas/notification.schema';
 import { AuthModule } from '../auth/auth.module';
+import { StorageModule } from '../config/storage.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Notification.name, schema: NotificationSchema }]),
     AuthModule,
+    StorageModule,
   ],
   controllers: [NotificationController],
   providers: [NotificationService],

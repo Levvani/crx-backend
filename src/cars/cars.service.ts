@@ -8,7 +8,7 @@ import { UpdateCarDto } from './dto/update-car.dto';
 import { UsersService } from '../users/users.service';
 import { SmsService } from '../sms/sms.service';
 import { PricesService } from '../prices/prices.service';
-import { User } from '../users/schemas/user.schema';
+import { StorageFactoryService } from '../config/storage-factory.service';
 
 interface CarFilters {
   vinCode?: string;
@@ -38,6 +38,7 @@ export class CarsService {
     private usersService: UsersService,
     private smsService: SmsService,
     private pricesService: PricesService,
+    private storageFactoryService: StorageFactoryService,
   ) {}
 
   private async updateUserTotalBalance(username: string, totalCost: number): Promise<void> {
@@ -61,10 +62,9 @@ export class CarsService {
   }
 
   async create(createCarDto: CreateCarDto, photos?: Express.Multer.File[]): Promise<CarDocument> {
-    // Check if username exists and get user info
-    let user: User;
+    // Check if username exists
     try {
-      user = await this.usersService.findByUsername(createCarDto.username);
+      await this.usersService.findByUsername(createCarDto.username);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw new NotFoundException(`User ${createCarDto.username} does not exist`);
@@ -72,43 +72,46 @@ export class CarsService {
       throw error;
     }
 
-    let transportationPrice = 0;
-    let profit = 0;
-
-    // Get price information for the location
-    const priceForLocation = await this.getPriceForLocation(createCarDto.location);
-
-    if (priceForLocation) {
-      // Calculate transportation price
-      transportationPrice = priceForLocation.upsellAmount;
-
-      // Add level-specific amount if it exists, otherwise use upsellAmount as default
-      const levelKey = user.level;
-      if (priceForLocation[levelKey]) {
-        transportationPrice += priceForLocation[levelKey];
-        profit = transportationPrice - priceForLocation.basePrice;
-      }
-    } else {
-      transportationPrice = 0;
-    }
-
     // Find the highest carID in the database
     const highestCar = await this.carModel.findOne().sort({ carID: -1 }).exec();
     const nextCarID = highestCar ? highestCar.carID + 1 : 1;
 
-    // Calculate totalCost as sum of transportationPrice and auctionPrice
-    const totalCost = transportationPrice + (createCarDto.auctionPrice || 0);
+    // Upload photos to cloud storage if provided
+    let photoUrls: string[] = [];
+    if (photos && photos.length > 0) {
+      try {
+        const storageService = this.storageFactoryService.getStorageService();
 
-    // Create a new car with the calculated transportation price and totalCost
+        // Process each photo and get URLs
+        const uploadPromises = photos.map((photo) => storageService.uploadFile(photo, 'cars'));
+        photoUrls = await Promise.all(uploadPromises);
+      } catch (error) {
+        console.error('Error uploading photos:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new BadRequestException(`Failed to upload photos: ${errorMessage}`);
+      }
+    }
+
+    // Calculate profit if transportationPrice and location are provided
+    let calculatedProfit = 0;
+    if (createCarDto.transportationPrice !== undefined && createCarDto.location) {
+      const priceForLocation = await this.getPriceForLocation(createCarDto.location);
+      if (priceForLocation && priceForLocation.basePrice !== undefined) {
+        calculatedProfit = createCarDto.transportationPrice - priceForLocation.basePrice;
+      }
+    }
+
+    // Create a new car with values from DTO (no automatic calculations)
     const newCar = new this.carModel({
       ...createCarDto,
       carID: nextCarID,
       status: createCarDto.containerNumber ? CarStatus.IN_TRANSIT : CarStatus.PURCHASED,
-      transportationPrice,
-      totalCost,
-      photos: photos?.map((photo) => `/uploads/cars/${photo.filename}`) || [],
-      toBePaid: totalCost,
-      profit: profit,
+      photos: photoUrls, // Store cloud storage URLs instead of local paths
+      // Use values from DTO or defaults
+      transportationPrice: createCarDto.transportationPrice || 0,
+      totalCost: createCarDto.totalCost || 0,
+      toBePaid: createCarDto.toBePaid || 0,
+      profit: calculatedProfit, // Use calculated profit instead of DTO value
     });
 
     const savedCar = await newCar.save();
@@ -121,7 +124,11 @@ export class CarsService {
     return savedCar;
   }
 
-  async update(carID: number, updateCarDto: UpdateCarDto): Promise<CarDocument> {
+  async update(
+    carID: number,
+    updateCarDto: UpdateCarDto,
+    photos?: Express.Multer.File[],
+  ): Promise<CarDocument> {
     // Find the car by ID
     const car = await this.carModel.findOne({ carID }).exec();
     if (!car) {
@@ -134,6 +141,25 @@ export class CarsService {
     // Ensure carID cannot be updated even if it's somehow included in the DTO
     if ('carID' in updateData) {
       delete (updateData as { carID?: number }).carID;
+    }
+
+    // Upload new photos to cloud storage if provided
+    if (photos && photos.length > 0) {
+      try {
+        const storageService = this.storageFactoryService.getStorageService();
+
+        // Process each photo and get URLs
+        const uploadPromises = photos.map((photo) => storageService.uploadFile(photo, 'cars'));
+        const newPhotoUrls = await Promise.all(uploadPromises);
+
+        // Add new photos to existing ones or replace them
+        const existingPhotos = car.photos || [];
+        updateData.photos = [...existingPhotos, ...newPhotoUrls];
+      } catch (error) {
+        console.error('Error uploading photos during update:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new BadRequestException(`Failed to upload photos: ${errorMessage}`);
+      }
     }
 
     // Auto-update status to 'In Transit' when containerNumber is set or updated

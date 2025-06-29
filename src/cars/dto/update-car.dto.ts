@@ -1,4 +1,4 @@
-import { IsString, IsNumber, Min, IsOptional, IsBoolean, IsEnum } from 'class-validator';
+import { IsString, IsNumber, Min, IsOptional, IsBoolean, IsEnum, IsArray } from 'class-validator';
 import { CarStatus } from '../schemas/car.schema';
 
 export class UpdateCarDto {
@@ -113,4 +113,8 @@ export class UpdateCarDto {
   @IsNumber()
   @Min(0)
   profit?: number;
+
+  @IsOptional()
+  @IsArray()
+  photos?: string[];
 }

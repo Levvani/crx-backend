@@ -93,6 +93,9 @@ export class Car {
 
   @Prop({ required: false, default: 0 })
   profit: number;
+
+  @Prop({ type: [String], default: [] })
+  photos: string[];
 }
 
 export const CarSchema = SchemaFactory.createForClass(Car);

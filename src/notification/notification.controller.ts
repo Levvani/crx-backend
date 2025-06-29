@@ -11,10 +11,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { existsSync, mkdirSync } from 'fs';
-import { v4 as uuid } from 'uuid';
 import { NotificationService } from './notification.service';
 import { NotificationDto } from './dto/notification.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,7 +25,6 @@ export class NotificationController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async getNotification(): Promise<NotificationDto | null> {
     const notification = await this.notificationService.getCurrentNotification();
     if (!notification) {
@@ -43,44 +38,60 @@ export class NotificationController {
     };
   }
 
-  @Post()
+  @Post('upload-image')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @UseInterceptors(
     FileInterceptor('image', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const uploadPath = 'uploads/notifications';
-          if (!existsSync(uploadPath)) {
-            mkdirSync(uploadPath, { recursive: true });
-          }
-          cb(null, uploadPath);
-        },
-        filename: (req, file, cb) => {
-          cb(null, `${uuid()}${extname(file.originalname)}`);
-        },
-      }),
       fileFilter: (req, file, cb) => {
-        if (file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+        if (file.mimetype.match(/\/(jpg|jpeg|png|gif|webp|avif|bmp|tiff|svg)$/)) {
           cb(null, true);
         } else {
           cb(
             new BadRequestException(
-              `Unsupported file type ${extname(file.originalname)}. Only jpg, jpeg, png, gif, and webp are allowed.`,
+              `Unsupported file type. Supported types: jpg, jpeg, png, gif, webp, avif, bmp, tiff, svg`,
             ),
             false,
           );
         }
       },
       limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
+        fileSize: 10 * 1024 * 1024, // 10MB
       },
     }),
   )
+  async uploadImage(
+    @UploadedFile() image: Express.Multer.File,
+  ): Promise<{ imageUrl: string; message: string }> {
+    if (!image) {
+      throw new BadRequestException('Image file is required');
+    }
+
+    const imageUrl = await this.notificationService.uploadImage(image);
+
+    // Update the notification record with the new image URL
+    await this.notificationService.updateNotificationImage(imageUrl);
+
+    return {
+      imageUrl,
+      message: 'Image uploaded and notification updated successfully',
+    };
+  }
+
+  @Post('clear-image')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  async clearImage(): Promise<{ message: string }> {
+    await this.notificationService.updateNotificationImage(null);
+    return { message: 'Notification image cleared successfully' };
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async updateNotification(
     @Body('isOn') isOn: string,
     @Body('message') message: string,
-    @UploadedFile() image: Express.Multer.File,
   ): Promise<{ message: string }> {
     if (isOn === undefined || message === undefined) {
       throw new BadRequestException('isOn and message fields are required');
@@ -89,13 +100,12 @@ export class NotificationController {
     // Convert string to boolean
     const isOnBoolean = isOn === 'true' || isOn === '1';
 
-    const notificationDto: NotificationDto = {
+    const notificationDto: Partial<NotificationDto> = {
       isOn: isOnBoolean,
       message: message,
-      image: image ? image.path : undefined, // Make image optional
     };
 
-    await this.notificationService.updateNotification(notificationDto);
+    await this.notificationService.updateNotification(notificationDto as NotificationDto);
 
     return { message: 'Notification updated successfully' };
   }
