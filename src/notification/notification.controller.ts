@@ -38,7 +38,7 @@ export class NotificationController {
     };
   }
 
-  @Post('upload-image')
+  @Post()
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @UseInterceptors(
@@ -60,38 +60,11 @@ export class NotificationController {
       },
     }),
   )
-  async uploadImage(
-    @UploadedFile() image: Express.Multer.File,
-  ): Promise<{ imageUrl: string; message: string }> {
-    if (!image) {
-      throw new BadRequestException('Image file is required');
-    }
-
-    const imageUrl = await this.notificationService.uploadImage(image);
-
-    // Update the notification record with the new image URL
-    await this.notificationService.updateNotificationImage(imageUrl);
-
-    return {
-      imageUrl,
-      message: 'Image uploaded and notification updated successfully',
-    };
-  }
-
-  @Post('clear-image')
-  @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  async clearImage(): Promise<{ message: string }> {
-    await this.notificationService.updateNotificationImage(null);
-    return { message: 'Notification image cleared successfully' };
-  }
-
-  @Post()
-  @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   async updateNotification(
     @Body('isOn') isOn: string,
     @Body('message') message: string,
+    @Body('clearImage') clearImage?: string,
+    @UploadedFile() image?: Express.Multer.File,
   ): Promise<{ message: string }> {
     if (isOn === undefined || message === undefined) {
       throw new BadRequestException('isOn and message fields are required');
@@ -99,10 +72,21 @@ export class NotificationController {
 
     // Convert string to boolean
     const isOnBoolean = isOn === 'true' || isOn === '1';
+    const shouldClearImage = clearImage === 'true' || clearImage === '1';
+
+    // Upload image to cloud storage if provided
+    let imageUrl: string | null | undefined;
+    if (image) {
+      imageUrl = await this.notificationService.uploadImage(image);
+    } else if (shouldClearImage) {
+      imageUrl = null; // Explicitly clear the image
+    }
+    // If neither image nor clearImage is provided, imageUrl remains undefined (keep existing)
 
     const notificationDto: Partial<NotificationDto> = {
       isOn: isOnBoolean,
       message: message,
+      image: imageUrl,
     };
 
     await this.notificationService.updateNotification(notificationDto as NotificationDto);

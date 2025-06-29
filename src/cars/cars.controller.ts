@@ -135,7 +135,7 @@ export class CarsController {
         dateOfPurchase: car.dateOfPurchase || null,
         shippingLine: car.shippingLine || null,
         containerNumber: car.containerNumber || null,
-        balanceOfCar: 0, // Set to 0 by default as requested
+        toBePaid: car.toBePaid || null,
         image:
           car.photos && car.photos.length > 0
             ? car.photos[0]

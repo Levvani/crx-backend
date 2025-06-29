@@ -37,9 +37,11 @@ export class NotificationService {
       message: notificationDto.message,
     };
 
-    // Only update image if it's provided, otherwise keep existing
+    // Update image if provided (including null to clear it)
     if (notificationDto.image !== undefined) {
       updateData.image = notificationDto.image;
+    } else {
+      updateData.image = null;
     }
 
     const updatedNotification = await this.notificationModel.findOneAndUpdate(
@@ -68,23 +70,5 @@ export class NotificationService {
     }
 
     return notification;
-  }
-
-  async updateNotificationImage(imageUrl: string | null): Promise<Notification> {
-    const updateData: Partial<Notification> = {
-      image: imageUrl,
-    };
-
-    const updatedNotification = await this.notificationModel.findOneAndUpdate(
-      {}, // Empty filter to match any document
-      updateData,
-      {
-        new: true, // Return the updated document
-        upsert: true, // Create if doesn't exist
-        runValidators: true,
-      },
-    );
-
-    return updatedNotification;
   }
 }
