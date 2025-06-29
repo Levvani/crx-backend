@@ -14,14 +14,11 @@ export interface Counter {
 
 @Injectable()
 export class InvoiceService {
-  private readonly uploadsPath: string;
   private readonly logoPath: string;
   private readonly regularFontPath: string;
   private readonly boldFontPath: string;
 
   constructor(@InjectModel('Counter') private counterModel: Model<Counter>) {
-    // Path to save generated invoices
-    this.uploadsPath = path.join(process.cwd(), 'uploads/invoices');
     // Path to company logo
     this.logoPath = path.join(process.cwd(), 'src/assets/crxLogo.jpg');
     // Path to Georgian fonts
@@ -30,19 +27,6 @@ export class InvoiceService {
       'src/assets/fonts/NotoSansGeorgian-Regular.ttf',
     );
     this.boldFontPath = path.join(process.cwd(), 'src/assets/fonts/NotoSansGeorgian-Bold.ttf');
-    // Ensure the uploads directory exists
-    void this.ensureUploadsDirectory();
-  }
-
-  /**
-   * Ensure the uploads directory exists
-   */
-  private async ensureUploadsDirectory(): Promise<void> {
-    try {
-      await fs.access(this.uploadsPath);
-    } catch {
-      await fs.mkdir(this.uploadsPath, { recursive: true });
-    }
   }
 
   /**
@@ -336,17 +320,13 @@ export class InvoiceService {
   }
 
   /**
-   * Generate an invoice PDF for a car using pdf-lib (exact implementation from your code)
+   * Generate an invoice PDF for a car using pdf-lib
    * @param car The car object containing data for the invoice
    * @param type The type of invoice ('transportation' or 'car')
    * @param amount Optional amount to override default car prices
-   * @returns Object containing the file path and buffer
+   * @returns Object containing the buffer for direct download
    */
-  async generateInvoice(
-    car: Car,
-    type: string,
-    amount?: number,
-  ): Promise<{ filePath: string; buffer: Buffer }> {
+  async generateInvoice(car: Car, type: string, amount?: number): Promise<{ buffer: Buffer }> {
     try {
       const invoiceNumber = await this.getNextInvoiceNumber();
 
@@ -493,17 +473,11 @@ export class InvoiceService {
         [200, 100, 200],
       );
 
-      // Save the PDF
+      // Generate the PDF buffer
       const pdfBytes = await pdfDoc.save();
       const pdfBuffer = Buffer.from(pdfBytes);
 
-      // Save to file with Georgian filename based on type
-      const typeText = type === 'transportation' ? 'ტრანსპორტირების' : 'ავტომობილის';
-      const filename = `${typeText} ინვოისი ${car.vinCode}.pdf`;
-      const filePath = path.join(this.uploadsPath, filename);
-      await fs.writeFile(filePath, pdfBuffer);
-
-      return { filePath, buffer: pdfBuffer };
+      return { buffer: pdfBuffer };
     } catch (error) {
       console.error('Error generating invoice:', error);
       throw new Error(
