@@ -5,6 +5,26 @@ import { CopartService } from './copart.service';
 export class CopartController {
   constructor(private readonly copartService: CopartService) {}
 
+  @Get('health')
+  async healthCheck() {
+    try {
+      const isHealthy = await this.copartService.testBrowserConnection();
+      return {
+        status: 'ok',
+        playwright: isHealthy ? 'working' : 'failed',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        status: 'error',
+        playwright: 'failed',
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
   @Get('carDetailsByLot')
   async getCarDetailsByLot(@Query('lotNumber') lotNumber: string) {
     try {
