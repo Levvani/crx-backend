@@ -49,7 +49,7 @@ export class PricesService {
       const priceObj = price.toObject();
       const levelPrice = Number(priceObj[level]) || 0;
       const upsellAmount = Number(priceObj.upsellAmount) || 0;
-      const levelAmount = levelPrice + upsellAmount;
+      const levelAmount = levelPrice;
 
       return {
         location: priceObj.location,
