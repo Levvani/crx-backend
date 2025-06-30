@@ -97,9 +97,20 @@ export class CarsService {
     if (createCarDto.transportationPrice !== undefined && createCarDto.location) {
       const priceForLocation = await this.getPriceForLocation(createCarDto.location);
       if (priceForLocation && priceForLocation.basePrice !== undefined) {
-        calculatedProfit = createCarDto.transportationPrice - priceForLocation.basePrice;
+        const effectiveTransportationPrice = createCarDto.doubleRate 
+          ? createCarDto.transportationPrice * 2 
+          : createCarDto.transportationPrice;
+        const effectiveBasePrice = createCarDto.doubleRate 
+          ? priceForLocation.basePrice * 2 
+          : priceForLocation.basePrice;
+        calculatedProfit = effectiveTransportationPrice - effectiveBasePrice;
       }
     }
+
+    // Apply 2x multiplier to transportationPrice if doubleRate field is true
+    const finalTransportationPrice = createCarDto.doubleRate && createCarDto.transportationPrice 
+      ? createCarDto.transportationPrice * 2 
+      : createCarDto.transportationPrice || 0;
 
     // Create a new car with values from DTO (no automatic calculations)
     const newCar = new this.carModel({
@@ -108,7 +119,7 @@ export class CarsService {
       status: createCarDto.containerNumber ? CarStatus.IN_TRANSIT : CarStatus.PURCHASED,
       photos: photoUrls, // Store cloud storage URLs instead of local paths
       // Use values from DTO or defaults
-      transportationPrice: createCarDto.transportationPrice || 0,
+      transportationPrice: finalTransportationPrice,
       totalCost: createCarDto.totalCost || 0,
       toBePaid: (createCarDto.totalCost || 0) - (createCarDto.paid || 0),
       profit: calculatedProfit, // Use calculated profit instead of DTO value
@@ -172,8 +183,24 @@ export class CarsService {
     }
 
     // Calculate new totalCost if either transportationPrice or auctionPrice is being updated
-    if (updateData.transportationPrice !== undefined || updateData.auctionPrice !== undefined) {
-      const newTransportationPrice = updateData.transportationPrice ?? car.transportationPrice;
+    if (updateData.transportationPrice !== undefined || updateData.auctionPrice !== undefined || updateData.doubleRate !== undefined) {
+      let newTransportationPrice = updateData.transportationPrice ?? car.transportationPrice;
+      
+      // Apply 2x multiplier if 2x field is being set to true or if it's already true and transportationPrice is being updated
+      const is2xActive = updateData.doubleRate ?? car.doubleRate;
+      if (is2xActive && updateData.transportationPrice !== undefined) {
+        newTransportationPrice = updateData.transportationPrice * 2;
+        updateData.transportationPrice = newTransportationPrice;
+      } else if (updateData.doubleRate === true && car.transportationPrice) {
+        // If 2x is being activated, multiply existing transportationPrice
+        newTransportationPrice = car.transportationPrice * 2;
+        updateData.transportationPrice = newTransportationPrice;
+      } else if (updateData.doubleRate === false && car.doubleRate === true && car.transportationPrice) {
+        // If 2x is being deactivated, divide by 2 to get original value
+        newTransportationPrice = car.transportationPrice / 2;
+        updateData.transportationPrice = newTransportationPrice;
+      }
+
       const newAuctionPrice = updateData.auctionPrice ?? car.auctionPrice;
       updateData.totalCost = newTransportationPrice + newAuctionPrice;
       if (updateData.totalCost >= car.paid) {
@@ -182,11 +209,14 @@ export class CarsService {
         updateData.toBePaid = 0;
       }
 
-      // Calculate profit if transportationPrice is being updated
-      if (updateData.transportationPrice !== undefined && car.location) {
+      // Calculate profit if transportationPrice is being updated or 2x field is changed
+      if ((updateData.transportationPrice !== undefined || updateData.doubleRate !== undefined) && car.location) {
         const priceForLocation = await this.getPriceForLocation(car.location);
         if (priceForLocation && priceForLocation.basePrice !== undefined) {
-          updateData.profit = updateData.transportationPrice - priceForLocation.basePrice;
+          const effectiveBasePrice = is2xActive 
+            ? priceForLocation.basePrice * 2 
+            : priceForLocation.basePrice;
+          updateData.profit = newTransportationPrice - effectiveBasePrice;
         }
       }
     }

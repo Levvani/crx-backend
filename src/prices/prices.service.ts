@@ -7,7 +7,6 @@ import { CreatePriceDto } from './dto/create-price.dto';
 import { UpdatePriceDto } from './dto/update-price.dto';
 import { AddDynamicKeyDto } from './dto/add-dynamic-key.dto';
 import * as XLSX from 'xlsx';
-import * as fs from 'fs';
 import * as path from 'path';
 import { parse } from 'csv-parse/sync';
 import { CreateDealerTypeDto } from './dto/create-dealer-type.dto';
@@ -112,18 +111,26 @@ export class PricesService {
   }
 
   async parseAndSaveFile(file: Express.Multer.File): Promise<Price[]> {
-    const filePath = file.path;
+    if (!file || !file.buffer) {
+      throw new BadRequestException('Invalid file or file buffer is missing');
+    }
+
     const fileExt = path.extname(file.originalname).toLowerCase();
     let rows: any[] = [];
 
     try {
       if (fileExt === '.xlsx') {
-        const workbook = XLSX.readFile(filePath);
+        // Parse Excel file from buffer
+        const workbook = XLSX.read(file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
+        if (!sheetName) {
+          throw new BadRequestException('Excel file has no sheets');
+        }
         const worksheet = workbook.Sheets[sheetName];
         rows = XLSX.utils.sheet_to_json(worksheet);
       } else if (fileExt === '.csv') {
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        // Parse CSV file from buffer
+        const fileContent = file.buffer.toString('utf-8');
         rows = parse(fileContent, {
           columns: true,
           skip_empty_lines: true,
@@ -135,8 +142,11 @@ export class PricesService {
       // Validate required columns
       const requiredColumns = ['location', 'upsellAmount', 'basePrice'];
       const firstRow = rows[0] as Record<string, any>;
+      if (!firstRow) {
+        throw new BadRequestException('File is empty or has no data rows');
+      }
+      
       const missingColumns = requiredColumns.filter((col) => !(col in firstRow));
-
       if (missingColumns.length > 0) {
         throw new BadRequestException(`Missing required columns: ${missingColumns.join(', ')}`);
       }
@@ -192,16 +202,11 @@ export class PricesService {
         .sort({ id: 1 })
         .exec();
 
-      // Clean up the uploaded file
-      fs.unlinkSync(filePath);
-
       return savedPrices;
     } catch (error) {
-      // Clean up the uploaded file in case of error
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      throw error;
+      console.error('Error processing price file:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new BadRequestException(`Failed to process file: ${errorMessage}`);
     }
   }
 

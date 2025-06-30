@@ -35,6 +35,9 @@ export class Car {
   dateOfPurchase: string;
 
   @Prop({ required: false })
+  dateOfArrival: string;
+
+  @Prop({ required: false })
   comment: string;
 
   @Prop({ required: false })
@@ -101,7 +104,10 @@ export class Car {
   isTaken: boolean;
 
   @Prop({ required: false, default: false })
-  isOversized: boolean;
+  doubleRate: boolean;
+
+  @Prop({ required: false, default: 0 })
+  oversized: number;
 }
 
 export const CarSchema = SchemaFactory.createForClass(Car);

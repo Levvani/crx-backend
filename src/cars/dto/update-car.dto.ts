@@ -33,6 +33,10 @@ export class UpdateCarDto {
 
   @IsOptional()
   @IsString()
+  dateOfArrival?: string;
+
+  @IsOptional()
+  @IsString()
   comment?: string;
 
   @IsOptional()
@@ -205,5 +209,16 @@ export class UpdateCarDto {
     }
     return Boolean(value);
   })
-  isOversized?: boolean;
+  doubleRate?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    const num = Number(value);
+    return isNaN(num) ? undefined : num;
+  })
+  oversized?: number;
 }

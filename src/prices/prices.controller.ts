@@ -22,7 +22,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
-import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { UpdatePriceDto } from './dto/update-price.dto';
 
@@ -41,13 +40,7 @@ export class PricesController {
   @Roles(UserRole.ADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/prices',
-        filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
-        },
-      }),
+      storage: undefined, // Keep file in memory as buffer
       fileFilter: (req, file, cb) => {
         const allowedExtensions = ['.xlsx', '.csv', '.numbers'];
         const ext = extname(file.originalname).toLowerCase();
@@ -56,6 +49,9 @@ export class PricesController {
         } else {
           cb(new BadRequestException('Only .xlsx, .csv, and .numbers files are allowed'), false);
         }
+      },
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
       },
     }),
   )

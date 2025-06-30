@@ -166,11 +166,13 @@ export class CarsController {
         buyer: car.buyer || null,
         auctionName: car.auctionName || null,
         dateOfPurchase: car.dateOfPurchase || null,
+        dateOfArrival: car.dateOfArrival || null,
         shippingLine: car.shippingLine || null,
         containerNumber: car.containerNumber || null,
         toBePaid: car.toBePaid || null,
         isTaken: car.isTaken || false,
-        isOversized: car.isOversized || false,
+        doubleRate: car.doubleRate || false,
+        oversized: car.oversized || 0,
         dateOfContainerOpening: car.dateOfContainerOpening || null,
         image:
           car.photos && car.photos.length > 0
@@ -213,6 +215,7 @@ export class CarsController {
       lotNumber: car.lotNumber || null,
       auctionName: car.auctionName || null,
       dateOfPurchase: car.dateOfPurchase || null,
+      dateOfArrival: car.dateOfArrival || null,
       comment: car.comment || null,
       shippingLine: car.shippingLine || null,
       dateOfContainerOpening: car.dateOfContainerOpening || null,
@@ -233,7 +236,8 @@ export class CarsController {
       financingAmount: car.financingAmount ?? 0,
       profit: car.profit ?? 0,
       isTaken: car.isTaken || false,
-      isOversized: car.isOversized || false,
+      doubleRate: car.doubleRate || false,
+      oversized: car.oversized || 0,
 
       // Keep the image field from your original response
       image:
