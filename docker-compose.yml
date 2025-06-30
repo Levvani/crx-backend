@@ -10,7 +10,7 @@ services:
     env_file:
       - ./.env
     ports:
-      - '80:80'
+      - "8080:80"
     environment:
       NODE_ENV: ${NODE_ENV}
       PORT: ${PORT}
@@ -40,6 +40,32 @@ services:
       - ./keys:/app/keys
     networks:
       - backend-network
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    networks:
+      - backend-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    #entrypoint: /bin/sh -c
+    # This will only run once to get the cert, see instructions below
+    # "certbot certonly --webroot --webroot-path=/var/www/certbot --email levanzhvania96@gmail.com --agree-tos --no-eff-email -d crx-platform.vercel.app"
 
 networks:
   backend-network:
