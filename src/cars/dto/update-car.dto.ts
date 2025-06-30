@@ -209,6 +209,18 @@ export class UpdateCarDto {
     }
     return Boolean(value);
   })
+  isTitleTaken?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true' || value === '1';
+    }
+    return Boolean(value);
+  })
   doubleRate?: boolean;
 
   @IsOptional()

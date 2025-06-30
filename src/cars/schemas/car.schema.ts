@@ -104,6 +104,9 @@ export class Car {
   isTaken: boolean;
 
   @Prop({ required: false, default: false })
+  isTitleTaken: boolean;
+
+  @Prop({ required: false, default: false })
   doubleRate: boolean;
 
   @Prop({ required: false, default: 0 })

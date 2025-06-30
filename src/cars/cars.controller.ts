@@ -171,6 +171,7 @@ export class CarsController {
         containerNumber: car.containerNumber || null,
         toBePaid: car.toBePaid || null,
         isTaken: car.isTaken || false,
+        isTitleTaken: car.isTitleTaken || false,
         doubleRate: car.doubleRate || false,
         oversized: car.oversized || 0,
         dateOfContainerOpening: car.dateOfContainerOpening || null,
@@ -236,6 +237,7 @@ export class CarsController {
       financingAmount: car.financingAmount ?? 0,
       profit: car.profit ?? 0,
       isTaken: car.isTaken || false,
+      isTitleTaken: car.isTitleTaken || false,
       doubleRate: car.doubleRate || false,
       oversized: car.oversized || 0,
 
