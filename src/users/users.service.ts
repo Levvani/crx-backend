@@ -509,14 +509,25 @@ export class UsersService {
       );
     }
 
-    // Check for cars with pending status (future-proofing, as current CarStatus doesn't include 'pending')
-    const cars = await this.carModel.find({
-      username: user.username
+    // Check for cars with toBePaid > 0 linked to this user
+    const carsWithOutstandingPayments = await this.carModel.find({
+      username: user.username,
+      toBePaid: { $gt: 0 }
     }).exec();
 
-    if (cars && cars.length > 0) {
+    if (carsWithOutstandingPayments && carsWithOutstandingPayments.length > 0) {
       throw new BadRequestException(
-        `Cannot delete user ${user.username}. There are ${cars.length} car(s) linked to this user.`
+        `Cannot delete user ${user.username}. There are ${carsWithOutstandingPayments.length} car(s) with outstanding payments (toBePaid > 0) linked to this user.`
+      );
+    }
+
+    // Check if user has any positive balances
+    const totalBalance = user.totalBalance || 0;
+    const profitBalance = user.profitBalance || 0;
+
+    if (totalBalance > 0 || profitBalance > 0) {
+      throw new BadRequestException(
+        `Cannot delete user ${user.username}. User has positive balance(s): totalBalance: ${totalBalance}, profitBalance: ${profitBalance}.`
       );
     }
 
