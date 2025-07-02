@@ -43,144 +43,195 @@ export class IaaIService {
       console.log(`🔍 Fetching details for salvage ID: ${salvageId}`);
 
       const url = `https://www.iaai.com/VehicleDetail/${salvageId}~US`;
-      console.log(`🌐 Using Playwright to fetch: ${url}`);
+      console.log(`🌐 Using Playwright to intercept network responses from: ${url}`);
 
-       // Use Playwright to get the HTML content (bypasses bot detection)
-       const browser = await chromium.launch({ 
+      // Use Playwright to intercept network responses with anti-bot detection measures
+      const browser = await chromium.launch({ 
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+        args: [ 
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process', // This helps in Docker
+          '--disable-gpu',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-blink-features=AutomationControlled', // Hide automation
+          '--disable-features=VizDisplayCompositor',
+          '--disable-ipc-flooding-protection',
+        ],
       });
       
       const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         viewport: { width: 1920, height: 1080 },
+        locale: 'en-US',
+        timezoneId: 'America/New_York',
+        extraHTTPHeaders: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-User': '?1',
+          'Cache-Control': 'max-age=0',
+        },
       });
       
       const page = await context.newPage();
       
-      // Navigate to the page
-      const response = await page.goto(url, { 
-        waitUntil: 'networkidle',
-        timeout: 30000 
+      // Hide webdriver properties to avoid bot detection
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => undefined,
+        });
+        
+        // Remove automation indicators
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Array;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+        
+        // Make chrome object look more realistic
+        (window as any).chrome = {
+          runtime: {},
+          loadTimes: function() {},
+          csi: function() {},
+          app: {}
+        };
+        
+        // Override permissions API
+        const originalQuery = window.navigator.permissions.query;
+        (window.navigator.permissions as any).query = (parameters: any) => originalQuery.call(window.navigator.permissions, parameters);
       });
       
-      console.log(`📊 Response status: ${response?.status()}`);
+      // Store intercepted responses
+      const interceptedResponses = new Map<string, any>();
       
-      // Get the HTML content
-      const htmlContent = await page.content();
-      console.log(`📊 Response content length: ${htmlContent.length}`);
+      // Set up network response interception
+      page.on('response', async (response) => {
+        const request = response.request();
+        const requestUrl = request.url();
+        
+        // Skip the url2 endpoint and only capture responses from the main IAAI page
+        if (requestUrl === url) {
+          
+          try {
+            const responseBody = await response.body();
+            const responseText = responseBody.toString();
+            console.log("RESPONSE BODYY - ", responseText);
+            
+            
+            console.log(`📡 Intercepted response from: ${requestUrl}`);
+            console.log(`📊 Response status: ${response.status()}`);
+            console.log(`📊 Response size: ${responseText.length} bytes`);
+            
+            interceptedResponses.set(requestUrl, {
+              url: requestUrl,
+              status: response.status(),
+              headers: response.headers(),
+              body: responseText,
+              method: request.method(),
+            });
+          } catch (error) {
+            console.error(`❌ Error intercepting response from ${requestUrl}:`, error);
+          }
+        }
+      });
+      
+      // Add a small delay to look more human-like
+      await page.waitForTimeout(1000 + Math.random() * 2000);
+      
+      // Navigate to the page and wait for network activity to complete
+      const response = await page.goto(url, { 
+        timeout: 30000,
+        waitUntil: 'domcontentloaded'
+      });
+      
+      console.log(`📊 Page response status: ${response?.status()}`);
+      
+      // Wait a bit more for any delayed API calls
+      await page.waitForTimeout(3000);
+      
+      // Log all intercepted responses
+      console.log(`📡 Total intercepted responses: ${interceptedResponses.size}`);
+      for (const [url, responseData] of interceptedResponses) {
+        console.log(`📡 Intercepted: ${url} (${responseData.status})`);
+      }
       
       // Close browser
       await browser.close();
 
-      // Parse HTML with Cheerio
-      const $ = cheerio.load(htmlContent);
-      
-      // Extract page title
-      const pageTitle = $('title').text().trim();
-      console.log(`📊 Page title: "${pageTitle}"`);
+      // Since we're intercepting the main HTML page response, parse it directly
+      if (interceptedResponses.size === 0) {
+        throw new Error('No responses were intercepted from the main page');
+      }
 
-      // Look for the ProductDetailsVM script tag
+      // Get the main page HTML response
+      const mainPageResponse = interceptedResponses.get(url);
+      if (!mainPageResponse) {
+        throw new Error('Main page response not found in intercepted responses');
+      }
+
+      console.log('📋 Parsing HTML response for ProductDetailsVM script');
+      
+      // Parse HTML to extract ProductDetailsVM script
+      const $ = cheerio.load(mainPageResponse.body);
       const productDetailsScript = $('script#ProductDetailsVM');
-      console.log(`📋 ProductDetailsVM script found: ${productDetailsScript.length > 0}`);
-
-      let extractedData: {
-        title: string;
-        url: string;
-        contentLength: number;
-        vehicleData: any;
-        productDetails: any;
-        salvageId: string;
-        extractedAt: string;
-        extractionError?: string;
-      } = {
-        title: pageTitle,
-        url,
-        contentLength: htmlContent.length,
-        vehicleData: null,
-        productDetails: null,
-        salvageId: salvageId,
-        extractedAt: new Date().toISOString()
-      };
-
-      if (productDetailsScript.length > 0) {
-        const scriptContent = productDetailsScript.html();
-        console.log(`📋 ProductDetailsVM script content length: ${scriptContent?.length || 0}`);
-        console.log(`📋 ProductDetailsVM content preview: ${scriptContent?.substring(0, 200)}...`);
-
-        if (scriptContent) {
-          try {
-            // Parse the JSON content
-            const jsonData = JSON.parse(scriptContent.trim());
-            extractedData.productDetails = jsonData;
-            console.log('✅ Successfully parsed ProductDetailsVM JSON');
-          } catch (parseError) {
-            console.error('❌ Error parsing ProductDetailsVM JSON:', parseError);
-            extractedData.extractionError = `JSON parse error: ${parseError.message}`;
-            extractedData.productDetails = { rawContent: scriptContent };
-          }
-        }
-      } else {
-        console.log('❌ ProductDetailsVM script tag not found');
-        
-        // Check if any script tags exist
-        const allScripts = $('script');
-        console.log(`📋 Total script tags found: ${allScripts.length}`);
-        
-        // Look for any scripts containing "ProductDetails" or similar
-        let foundSimilar = false;
-        allScripts.each((index, element) => {
-          const scriptId = $(element).attr('id');
-          const scriptContent = $(element).html();
-          
-          if (scriptId) {
-            console.log(`📋 Script tag found with id: ${scriptId}`);
-          }
-          
-          if (scriptContent && scriptContent.includes('ProductDetails')) {
-            console.log(`📋 Found script containing "ProductDetails" at index ${index}`);
-            console.log(`📋 Content preview: ${scriptContent.substring(0, 200)}...`);
-            foundSimilar = true;
-          }
-        });
-        
-        if (!foundSimilar) {
-          console.log('📋 No scripts containing "ProductDetails" found');
-        }
-      }
-
-      // Also extract basic vehicle info from HTML
-      const stockNumber = $('.data-list__item').filter((i, el) => $(el).text().includes('Stock#')).text().match(/Stock#:\s*(\d+)/)?.[1];
-      const vin = $('.data-list__item').filter((i, el) => $(el).text().includes('VIN')).text().match(/VIN:\s*([A-HJ-NPR-Z0-9*]+)/)?.[1];
       
-      if (stockNumber || vin) {
-        extractedData.vehicleData = {
-          stockNumber: stockNumber || null,
-          vin: vin || null,
-        };
-        console.log('✅ Extracted basic vehicle data from HTML');
-      }
-      // Add null checks before accessing nested properties
-      if (!extractedData.productDetails) {
-        console.error('❌ productDetails is null or undefined');
-        throw new Error('ProductDetails data not found in response');
+      if (productDetailsScript.length === 0) {
+        console.log('❌ ProductDetailsVM script tag not found');
+        throw new Error('ProductDetailsVM script not found in page');
       }
 
-      if (!extractedData.productDetails.inventoryView) {
-        console.error('❌ inventoryView is null or undefined');
-        console.log('📋 Available productDetails keys:', Object.keys(extractedData.productDetails));
-        throw new Error('InventoryView data not found in ProductDetails');
+      const scriptContent = productDetailsScript.html();
+      if (!scriptContent) {
+        console.log('❌ ProductDetailsVM script content is empty');
+        throw new Error('ProductDetailsVM script content is empty');
       }
 
-      if (!extractedData.productDetails.inventoryView.attributes) {
-        console.error('❌ inventoryView.attributes is null or undefined');
-        console.log('📋 Available inventoryView keys:', Object.keys(extractedData.productDetails.inventoryView));
+      console.log(`📋 ProductDetailsVM script content length: ${scriptContent.length}`);
+      console.log(`📋 ProductDetailsVM content preview: ${scriptContent.substring(0, 200)}...`);
+
+      let productDetailsData;
+      try {
+        // Parse the JSON content
+        productDetailsData = JSON.parse(scriptContent.trim());
+        console.log('✅ Successfully parsed ProductDetailsVM JSON');
+      } catch (parseError) {
+        console.error('❌ Error parsing ProductDetailsVM JSON:', parseError);
+        throw new Error(`Failed to parse ProductDetailsVM JSON: ${parseError.message}`);
+      }
+
+      // Extract the required fields
+      if (!productDetailsData.inventoryView) {
+        console.error('❌ inventoryView not found in ProductDetailsVM');
+        console.log('📋 Available keys:', Object.keys(productDetailsData));
+        throw new Error('InventoryView data not found in ProductDetailsVM');
+      }
+
+      if (!productDetailsData.inventoryView.attributes) {
+        console.error('❌ inventoryView.attributes not found');
+        console.log('📋 Available inventoryView keys:', Object.keys(productDetailsData.inventoryView));
         throw new Error('Attributes data not found in InventoryView');
       }
+
+      const location = productDetailsData.inventoryView.attributes.BranchName;
+      const carName = productDetailsData.inventoryView.attributes.YearMakeModelSeries;
+      const vin = responseData2.Vin;
+
+      console.log('✅ Successfully extracted vehicle data');
+      
       return {
-        location: extractedData.productDetails.inventoryView.attributes.BranchName,
-        carName: extractedData.productDetails.inventoryView.attributes.YearMakeModelSeries,
-        vin: responseData2.Vin
+        location,
+        carName,
+        vin
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
