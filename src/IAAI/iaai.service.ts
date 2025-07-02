@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { AxiosResponse } from 'axios';
 import * as cheerio from 'cheerio';
+import { chromium } from 'playwright';
 
 @Injectable()
 export class IaaIService {
@@ -42,29 +43,38 @@ export class IaaIService {
       console.log(`🔍 Fetching details for salvage ID: ${salvageId}`);
 
       const url = `https://www.iaai.com/VehicleDetail/${salvageId}~US`;
-      console.log(`🌐 Making HTTP request to: ${url}`);
+      console.log(`🌐 Using Playwright to fetch: ${url}`);
 
-      // Make HTTP request to get the HTML content
-      const response: AxiosResponse<string> = await lastValueFrom(
-        this.httpService.get<string>(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-          },
-          responseType: 'text',
-          timeout: 30000,
-        }),
-      );
-
-      console.log(`📊 Response status: ${response.status}`);
-      console.log(`📊 Response content length: ${response.data.length}`);
+       // Use Playwright to get the HTML content (bypasses bot detection)
+       const browser = await chromium.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+      });
+      
+      const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1920, height: 1080 },
+      });
+      
+      const page = await context.newPage();
+      
+      // Navigate to the page
+      const response = await page.goto(url, { 
+        waitUntil: 'networkidle',
+        timeout: 30000 
+      });
+      
+      console.log(`📊 Response status: ${response?.status()}`);
+      
+      // Get the HTML content
+      const htmlContent = await page.content();
+      console.log(`📊 Response content length: ${htmlContent.length}`);
+      
+      // Close browser
+      await browser.close();
 
       // Parse HTML with Cheerio
-      const $ = cheerio.load(response.data);
+      const $ = cheerio.load(htmlContent);
       
       // Extract page title
       const pageTitle = $('title').text().trim();
@@ -86,7 +96,7 @@ export class IaaIService {
       } = {
         title: pageTitle,
         url,
-        contentLength: response.data.length,
+        contentLength: htmlContent.length,
         vehicleData: null,
         productDetails: null,
         salvageId: salvageId,
