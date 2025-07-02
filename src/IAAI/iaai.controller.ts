@@ -7,6 +7,6 @@ export class IaaIController {
 
   @Get('carDetailsByLot')
   async getCarDetailsByLot(@Query('lotNumber') lotNumber: string) {
-    return this.iaaiService.getDetailsBySalvageId(lotNumber);
+    return this.iaaiService.getCarDetailsByLot(lotNumber);
   }
 }
