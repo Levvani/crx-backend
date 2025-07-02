@@ -30,6 +30,15 @@ export class IaaIService {
 
   async getDetailsBySalvageId(salvageId: string) {
     try {
+      const url2 = `https://vis.iaai.com/Home/GetVehicleData?salvageId=${salvageId}`;
+      const response2: AxiosResponse<string> = await lastValueFrom(
+        this.httpService.get<string>(url2, {
+          responseType: 'text',
+        }),
+      );
+      const responseData2 = JSON.parse(response2.data) as Record<string, unknown>;
+      console.log("PROSTA RESPONSE - ", responseData2);
+
       console.log(`🔍 Fetching details for salvage ID: ${salvageId}`);
 
       const url = `https://www.iaai.com/VehicleDetail/${salvageId}~US`;
@@ -142,10 +151,10 @@ export class IaaIService {
         console.log('✅ Extracted basic vehicle data from HTML');
       }
 
-      console.log("PROSTA RESPONSE - ", extractedData);
-
       return {
-        data: extractedData.productDetails.inventoryView.attributes.BranchName
+        location: extractedData.productDetails.inventoryView.attributes.BranchName,
+        carName: extractedData.productDetails.inventoryView.attributes.YearMakeModelSeries,
+        vin: responseData2.Vin
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
