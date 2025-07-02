@@ -255,7 +255,7 @@ export class CarsController {
   @Delete()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async delete(@Body('carID') carID: number): Promise<Car> {
+  async delete(@Query('carID', ParseIntPipe) carID: number): Promise<Car> {
     return this.carsService.delete(carID);
   }
 

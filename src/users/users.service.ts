@@ -9,6 +9,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument, UserRole } from './schemas/user.schema';
+import { Car, CarDocument } from '../cars/schemas/car.schema';
+import { Damage, DamageDocument } from '../damages/schemas/damages.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -22,7 +24,11 @@ interface PaginationOptions {
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Car.name) private carModel: Model<CarDocument>,
+    @InjectModel(Damage.name) private damageModel: Model<DamageDocument>,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     // Check if user already exists
@@ -478,6 +484,49 @@ export class UsersService {
     const finalBalance = newBalance < 0 ? 0 : newBalance;
 
     await this.userModel.updateOne({ userID }, { $set: { totalBalance: finalBalance } });
+  }
+
+  async delete(userID: number): Promise<UserDocument> {
+    if (isNaN(userID)) {
+      throw new BadRequestException(`Invalid userID format: ${userID}`);
+    }
+
+    // First, find the user to get their username
+    const user = await this.userModel.findOne({ userID }).exec();
+    if (!user) {
+      throw new NotFoundException(`User with userID ${userID} not found`);
+    }
+
+    // Check for pending damages linked to this user
+    const pendingDamages = await this.damageModel.find({
+      username: user.username,
+      status: 'pending'
+    }).exec();
+
+    if (pendingDamages && pendingDamages.length > 0) {
+      throw new BadRequestException(
+        `Cannot delete user ${user.username}. There are ${pendingDamages.length} pending damage(s) linked to this user.`
+      );
+    }
+
+    // Check for cars with pending status (future-proofing, as current CarStatus doesn't include 'pending')
+    const cars = await this.carModel.find({
+      username: user.username
+    }).exec();
+
+    if (cars && cars.length > 0) {
+      throw new BadRequestException(
+        `Cannot delete user ${user.username}. There are ${cars.length} car(s) linked to this user.`
+      );
+    }
+
+    const deletedUser = await this.userModel.findOneAndDelete({ userID }).exec();
+    
+    if (!deletedUser) {
+      throw new NotFoundException(`User with userID ${userID} not found during deletion`);
+    }
+
+    return deletedUser;
   }
 
   // CRITICAL FIX: Add transaction-based token management for extra safety

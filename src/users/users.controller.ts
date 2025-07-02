@@ -1,5 +1,5 @@
 // src/users/users.controller.ts
-import { Controller, Get, Param, UseGuards, Put, Body, Query } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Put, Body, Query, Delete } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -96,5 +96,18 @@ export class UsersController {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user.toObject() as User;
     return result;
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  async deleteUser(@Param('id') id: number) {
+    const user = await this.usersService.delete(id);
+    // Remove password from response
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user.toObject() as User;
+    return {
+      message: `User ${result.username} (ID: ${result.userID}) has been successfully deleted`,
+      deletedUser: result,
+    };
   }
 }
