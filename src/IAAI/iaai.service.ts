@@ -150,7 +150,23 @@ export class IaaIService {
         };
         console.log('✅ Extracted basic vehicle data from HTML');
       }
+      // Add null checks before accessing nested properties
+      if (!extractedData.productDetails) {
+        console.error('❌ productDetails is null or undefined');
+        throw new Error('ProductDetails data not found in response');
+      }
 
+      if (!extractedData.productDetails.inventoryView) {
+        console.error('❌ inventoryView is null or undefined');
+        console.log('📋 Available productDetails keys:', Object.keys(extractedData.productDetails));
+        throw new Error('InventoryView data not found in ProductDetails');
+      }
+
+      if (!extractedData.productDetails.inventoryView.attributes) {
+        console.error('❌ inventoryView.attributes is null or undefined');
+        console.log('📋 Available inventoryView keys:', Object.keys(extractedData.productDetails.inventoryView));
+        throw new Error('Attributes data not found in InventoryView');
+      }
       return {
         location: extractedData.productDetails.inventoryView.attributes.BranchName,
         carName: extractedData.productDetails.inventoryView.attributes.YearMakeModelSeries,
