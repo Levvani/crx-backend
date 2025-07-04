@@ -16,7 +16,7 @@ export class BogApiController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<any> {
-    return this.bogApiService.getStatement(accountNumber, currency, startDate, endDate);
+    return this.bogApiService.getStatement(accountNumber, currency);
   }
 
   @Post('trigger-cron')

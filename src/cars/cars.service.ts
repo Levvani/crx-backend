@@ -221,6 +221,9 @@ export class CarsService {
       }
     }
 
+    // Track original toBePaid to detect changes
+    const originalToBePaid = car.toBePaid || 0;
+
     // Check if status is being updated to 'Green'
     const isStatusChangingToGreen =
       updateData.status === CarStatus.GREEN && car.status !== CarStatus.GREEN;
@@ -275,17 +278,15 @@ export class CarsService {
       // updatedCar.toBePaid = 0;
     }
 
-    // Update user's total balance only if totalCost was actually changed
-    if (updateData.totalCost !== undefined) {
-      const oldTotalCost = car.totalCost || 0;
-      const newTotalCost = updateData.totalCost;
-
-      // Only update if there's an actual change in totalCost
-      if (oldTotalCost !== newTotalCost) {
-        // Calculate the difference to add to user's balance
-        const costDifference = newTotalCost - oldTotalCost;
-        await this.updateUserTotalBalance(updatedCar.username, costDifference);
-      }
+    // Update user's total balance based on toBePaid changes (this covers all scenarios)
+    const finalToBePaid = updatedCar.toBePaid || 0;
+    const toBePaidDifference = finalToBePaid - originalToBePaid;
+    
+    if (toBePaidDifference !== 0) {
+      await this.updateUserTotalBalance(updatedCar.username, toBePaidDifference);
+      console.log(
+        `Updated user ${updatedCar.username} totalBalance by ${toBePaidDifference} due to toBePaid change from ${originalToBePaid} to ${finalToBePaid}`,
+      );
     }
 
     // If status changed to Green, send SMS notification
@@ -430,14 +431,26 @@ export class CarsService {
         throw new NotFoundException(`Car with carID ${carID} not found`);
       }
 
+      // Calculate the difference for user balance update
+      const currentToBePaid = car.toBePaid || 0;
+      const newToBePaid = car.totalCost || 0;
+      const balanceChange = newToBePaid - currentToBePaid;
+
       const result = await this.carModel.updateOne(
         { carID },
-        { $set: { toBePaid: car.totalCost } },
+        { $set: { toBePaid: newToBePaid } },
       );
 
       if (result.matchedCount === 0) {
         throw new NotFoundException(`Car with carID ${carID} not found`);
       }
+
+      // Update user's total balance if there's a change
+      if (balanceChange !== 0) {
+        await this.updateUserTotalBalance(car.username, balanceChange);
+        console.log(`Updated user ${car.username} totalBalance by ${balanceChange} due to toBePaid reset`);
+      }
+
       return;
     }
 
@@ -454,13 +467,27 @@ export class CarsService {
 
     // If paid already exceeds totalCost, keep toBePaid at 0
     if (currentPaid > totalCost && totalCost > 0) {
+      const oldToBePaid = car.toBePaid || 0;
+      if (oldToBePaid > 0) {
+        // Update user balance to reflect toBePaid going to 0
+        await this.updateUserTotalBalance(car.username, -oldToBePaid);
+        console.log(`Updated user ${car.username} totalBalance by -${oldToBePaid} due to toBePaid reset to 0`);
+      }
       await this.carModel.updateOne({ carID }, { $set: { toBePaid: 0 } });
       return;
     }
 
     // Update toBePaid, but ensure it doesn't go below 0
     const finalToBePaid = Math.max(0, newToBePaid);
+    const actualChange = finalToBePaid - currentToBePaid;
+
     await this.carModel.updateOne({ carID }, { $set: { toBePaid: finalToBePaid } });
+
+    // Update user's total balance to reflect the change in debt
+    if (actualChange !== 0) {
+      await this.updateUserTotalBalance(car.username, actualChange);
+      console.log(`Updated user ${car.username} totalBalance by ${actualChange} due to toBePaid change from ${currentToBePaid} to ${finalToBePaid}`);
+    }
   }
 
   async updatePaid(carID: number, amount: number): Promise<void> {

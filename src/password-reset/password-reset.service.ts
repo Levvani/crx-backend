@@ -38,6 +38,77 @@ export class PasswordResetService {
     private mailerService: MailerService,
   ) {}
 
+  private async sendEmailWithRetry(emailOptions: any, maxRetries = 3): Promise<void> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Email sending attempt ${attempt}/${maxRetries}`, {
+          to: emailOptions.to,
+          subject: emailOptions.subject,
+          attempt,
+          timestamp: new Date().toISOString(),
+        });
+        
+        await this.mailerService.sendMail(emailOptions);
+        
+        console.log('Email sent successfully', {
+          to: emailOptions.to,
+          attempt,
+          timestamp: new Date().toISOString(),
+        });
+        
+        return; // Success, exit the retry loop
+      } catch (error) {
+        lastError = error as Error;
+        
+        console.error(`Email sending attempt ${attempt} failed:`, {
+          error: lastError.message,
+          code: (lastError as any).code,
+          command: (lastError as any).command,
+          to: emailOptions.to,
+          attempt,
+          timestamp: new Date().toISOString(),
+        });
+        
+        if (attempt < maxRetries) {
+          const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    // If we get here, all retries failed
+    throw new EmailServiceError(
+      `Failed to send email after ${maxRetries} attempts: ${lastError.message}`,
+      lastError
+    );
+  }
+
+  private validateSmtpConfiguration(): void {
+    const requiredVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'FRONTEND_URL'];
+    const missingVars = requiredVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+      console.error('SMTP configuration validation failed:', {
+        missingVariables: missingVars,
+        providedVariables: requiredVars.filter(varName => !!process.env[varName]),
+        timestamp: new Date().toISOString(),
+      });
+      throw new SmtpConfigError();
+    }
+    
+    console.log('SMTP configuration validated successfully', {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: process.env.SMTP_SECURE,
+      user: process.env.SMTP_USER,
+      frontendUrl: process.env.FRONTEND_URL,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   async createPasswordResetToken(email: string): Promise<void> {
     try {
       // Check if user exists
@@ -58,87 +129,94 @@ export class PasswordResetService {
           token,
           expiresAt,
         });
+        console.log('Password reset token created successfully', {
+          email,
+          expiresAt,
+          timestamp: new Date().toISOString(),
+        });
       } catch (dbError) {
-        console.error('Failed to create password reset token in database:', dbError);
-        throw new InternalServerErrorException('Failed to process password reset request');
-      }
-
-      // Check if SMTP environment variables are set
-      if (
-        !process.env.SMTP_HOST ||
-        !process.env.SMTP_PORT ||
-        !process.env.SMTP_USER ||
-        !process.env.SMTP_PASS ||
-        !process.env.FRONTEND_URL
-      ) {
-        const error = new SmtpConfigError();
-        console.error('SMTP configuration error:', {
-          host: !!process.env.SMTP_HOST,
-          port: !!process.env.SMTP_PORT,
-          user: !!process.env.SMTP_USER,
-          pass: !!process.env.SMTP_PASS,
-          frontendUrl: !!process.env.FRONTEND_URL,
-        });
-        throw error;
-      }
-
-      // Send reset email
-      try {
-        await this.mailerService.sendMail({
-          to: email,
-          subject: 'Password Reset Request',
-          headers: {
-            'X-Priority': '1',
-            'X-MSMail-Priority': 'High',
-            Importance: 'high',
-            'List-Unsubscribe': `<${process.env.FRONTEND_URL}/unsubscribe>`,
-            'X-Report-Abuse': `${process.env.FRONTEND_URL}/report-abuse`,
-            'Feedback-ID': 'password-reset:crx-platform',
-          },
-          html: `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Password Reset Request</title>
-              <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-                .container { background: #f9f9f9; border-radius: 5px; padding: 20px; }
-                .button { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 15px 0; }
-                .footer { margin-top: 20px; font-size: 12px; color: #666; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h2>Password Reset Request</h2>
-                <p>Hello,</p>
-                <p>We received a request to reset the password for your CRX Platform account.</p>
-                <p>To reset your password, click the button below:</p>
-                <a href="${process.env.FRONTEND_URL}/reset-password?token=${token}" class="button">Reset Password</a>
-                <p>This link will expire in 1 hour for security reasons.</p>
-                <p>If you didn't request this password reset, please ignore this email or contact support if you have concerns.</p>
-                <div class="footer">
-                  <p>This is an automated message, please do not reply to this email.</p>
-                  <p>CRX Platform Security Team</p>
-                </div>
-              </div>
-            </body>
-            </html>
-          `,
-        });
-      } catch (emailError) {
-        console.error('Failed to send password reset email:', {
-          error: emailError as Error,
+        console.error('Failed to create password reset token in database:', {
+          error: dbError,
           email,
           timestamp: new Date().toISOString(),
         });
-        throw new EmailServiceError('Failed to send password reset email', emailError);
+        throw new InternalServerErrorException('Failed to process password reset request');
+      }
+
+      // Validate SMTP configuration
+      this.validateSmtpConfiguration();
+
+      // Prepare email options
+      const emailOptions = {
+        to: email,
+        subject: 'Password Reset Request - CRX Platform',
+        headers: {
+          'X-Priority': '1',
+          'X-MSMail-Priority': 'High',
+          Importance: 'high',
+          'List-Unsubscribe': `<${process.env.FRONTEND_URL}/unsubscribe>`,
+          'X-Report-Abuse': `${process.env.FRONTEND_URL}/report-abuse`,
+          'Feedback-ID': 'password-reset:crx-platform',
+        },
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Password Reset Request</title>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .container { background: #f9f9f9; border-radius: 5px; padding: 20px; border: 1px solid #ddd; }
+              .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 15px 0; font-weight: bold; }
+              .button:hover { background-color: #0056b3; }
+              .footer { margin-top: 20px; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 15px; }
+              .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; margin: 15px 0; color: #856404; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h2>Password Reset Request</h2>
+              <p>Hello,</p>
+              <p>We received a request to reset the password for your CRX Platform account associated with this email address.</p>
+              <p>To reset your password, click the button below:</p>
+              <a href="${process.env.FRONTEND_URL}/reset-password?token=${token}" class="button">Reset Password</a>
+              <div class="warning">
+                <strong>Important:</strong> This link will expire in 1 hour for security reasons.
+              </div>
+              <p>If you didn't request this password reset, please ignore this email or contact our support team if you have concerns about your account security.</p>
+              <p>For your security, please do not share this link with anyone.</p>
+              <div class="footer">
+                <p>This is an automated message, please do not reply to this email.</p>
+                <p><strong>CRX Platform Security Team</strong></p>
+                <p>If you need assistance, please contact our support team.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+      };
+
+      // Send reset email with retry logic
+      try {
+        await this.sendEmailWithRetry(emailOptions);
+        console.log('Password reset email sent successfully', {
+          email,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (emailError) {
+        console.error('Failed to send password reset email after all retries:', {
+          error: emailError,
+          email,
+          timestamp: new Date().toISOString(),
+        });
+        throw emailError;
       }
     } catch (error) {
       console.error('Error in createPasswordResetToken:', {
         error: (error as Error).message,
         type: (error as Error).name,
+        stack: (error as Error).stack,
         timestamp: new Date().toISOString(),
         email: email,
       });

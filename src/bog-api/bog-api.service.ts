@@ -35,7 +35,7 @@ interface StatementEntry {
   EntryAmountCredit: number;
   EntryAmountCreditBase: number | null;
   EntryAmountBase: number;
-  EntryAmount: number;
+  Credit: number; // Changed from EntryAmount to Credit
   EntryComment: string;
   EntryDepartment: string;
   EntryAccountPoint: string;
@@ -66,15 +66,14 @@ interface StatementEntry {
   DocumentCorrespondentBankCode: string | null;
   DocumentCorrespondentBankName: string | null;
   DocumentKey: number;
-  EntryId: number;
+  Id: number;
   DocumentPayerName: string;
   DocumentPayerInn: string;
   DocComment: string;
 }
 
-interface StatementResponse {
-  Records: StatementEntry[];
-}
+// Changed: StatementResponse is now directly an array of StatementEntry objects
+type StatementResponse = StatementEntry[];
 
 @Injectable()
 export class BogApiService {
@@ -152,7 +151,24 @@ export class BogApiService {
     };
   }
 
-  private async processStatementAndUpdateCars(statementData: StatementResponse): Promise<void> {
+  private async fetchUsdRate(): Promise<number> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<{ rate: number }>(BOG_API_CONFIG.nbgRate)
+      );
+      // If the API returns just a number, not an object, adjust accordingly
+      const usdRate = typeof response.data === 'number' ? response.data : response.data.rate;
+      if (!usdRate || isNaN(usdRate)) {
+        throw new Error('Invalid USD rate received from nbgRate endpoint');
+      }
+      return usdRate;
+    } catch (error) {
+      console.error('Failed to fetch USD rate from nbgRate endpoint:', error);
+      throw new HttpException('Failed to fetch USD rate', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  private async processStatementAndUpdateCars(statementData: StatementResponse, usdRate: number): Promise<void> {
     try {
       // Get all cars with their VIN codes and required fields for totalCost calculation
       const cars = await this.carModel
@@ -179,126 +195,103 @@ export class BogApiService {
       );
 
       // Process statement entries and collect updates
-      const updates: { id: number; entryId: number }[] = [];
+      const updates: { id: number; entryId: number; finalCredit: number }[] = [];
       const processedEntries: {
         entryId: number;
         amount: number;
         vinCode: string;
       }[] = [];
 
-      if (statementData?.Records && Array.isArray(statementData.Records)) {
-        for (const entry of statementData.Records) {
+      if (statementData && Array.isArray(statementData)) {
+        for (const entry of statementData) {
           // Skip if entry has already been processed (using in-memory Set)
-          if (processedEntryIds.has(entry.EntryId)) {
+          if (processedEntryIds.has(entry.Id)) {
             continue;
           }
 
-          if (entry.EntryComment && entry.EntryAmount) {
+          // Mark this entry as processed regardless of whether it has matching cars
+          let foundMatch = false;
+          let normalizedCredit = 0;
+          let matchedVinCode = '';
+
+          if (entry.EntryComment && entry.Credit) {
+            // Normalize credit value first
+            normalizedCredit = entry.Credit / usdRate;
+            // If normalizedCredit > 10000, subtract 0.3%
+            if (normalizedCredit > 10000) {
+              const fee = normalizedCredit * 0.003;
+              normalizedCredit = normalizedCredit - fee;
+            }
+
             // Find matching car by VIN code in EntryComment
             for (const [vinCode, carData] of vinCodeToCarData.entries()) {
               if (entry.EntryComment.includes(vinCode)) {
                 updates.push({
                   id: carData.id,
-                  entryId: entry.EntryId,
+                  entryId: entry.Id,
+                  finalCredit: normalizedCredit,
                 });
 
-                processedEntries.push({
-                  entryId: entry.EntryId,
-                  amount: entry.EntryAmount,
-                  vinCode,
-                });
-
+                foundMatch = true;
+                matchedVinCode = vinCode;
                 break; // Found the matching car, no need to check other VIN codes
               }
             }
           }
+
+          // Always add to processedEntries to prevent reprocessing
+          processedEntries.push({
+            entryId: entry.Id,
+            amount: normalizedCredit,
+            vinCode: matchedVinCode, // Will be empty string if no match found
+          });
         }
       }
 
-      // First update cars in batches
+      // Update cars using the dedicated methods (user balance updates are handled automatically)
       if (updates.length > 0) {
-        // First, get current car data to calculate cost differences
-        const carsToUpdate = await this.carModel
-          .find(
-            { carID: { $in: updates.map((u) => u.id) } },
-            {
-              username: 1,
-              carID: 1,
-              toBePaid: 1,
-            },
-          )
-          .lean();
-
-        // Calculate cost differences using current car data
-        const userUpdates = new Map<string, number>();
-        for (const car of carsToUpdate) {
-          const update = updates.find((u) => u.id === car.carID);
-          if (update) {
-            // Find the corresponding processed entry to get the EntryAmount
-            const processedEntry = processedEntries.find((pe) => pe.entryId === update.entryId);
-            const entryAmount = processedEntry?.amount || 0;
-
-            // Cost difference is negative (since we're subtracting from toBePaid)
-            const costDifference = -entryAmount;
-
-            if (costDifference !== 0) {
-              userUpdates.set(car.username, (userUpdates.get(car.username) || 0) + costDifference);
-            }
-          }
-        }
-
-        // Update user balances first
-        for (const [username, costDifference] of userUpdates.entries()) {
-          try {
-            const user = await this.usersService.findByUsername(username);
-
-            await this.usersService.updateTotalBalance(user.userID, costDifference);
-          } catch (error) {
-            console.error(`Failed to update total balance for user ${username}:`, error);
-            // Continue with other updates even if one fails
-          }
-        }
-
-        // Then update cars using the dedicated method
         for (const update of updates) {
-          // Find the corresponding processed entry to get the EntryAmount
-          const processedEntry = processedEntries.find((pe) => pe.entryId === update.entryId);
-          const entryAmount = processedEntry?.amount || 0;
-
-          if (entryAmount > 0) {
+          if (update.finalCredit > 0) {
             try {
-              // Use negative amount to subtract from toBePaid
-              await this.carsService.updateToBePaid(update.id, -entryAmount);
-              console.log(`Updated car ${update.id} toBePaid by -${entryAmount}`);
+              // Use negative amount to subtract from toBePaid (this will automatically update user balance)
+              await this.carsService.updateToBePaid(update.id, -update.finalCredit);
+              console.log(`Updated car ${update.id} toBePaid by -${update.finalCredit}`);
 
               // Add the entryAmount to the car's paid field
-              await this.carsService.updatePaid(update.id, entryAmount);
-              console.log(`Updated car ${update.id} paid by +${entryAmount}`);
+              await this.carsService.updatePaid(update.id, update.finalCredit);
+              console.log(`Updated car ${update.id} paid by +${update.finalCredit}`);
             } catch (error) {
               console.error(`Failed to update car ${update.id}:`, error);
               // Continue with other updates even if one fails
             }
           }
         }
+      }
 
-        // Store processed entries in a single bulk insert
-        if (processedEntries.length > 0) {
-          const processedEntryDocs = processedEntries.map((entry) => ({
-            entryId: entry.entryId,
-            amount: entry.amount,
-            vinCode: entry.vinCode,
-            processedAt: new Date(),
-          }));
+      // Store ALL processed entries (both matched and unmatched) to prevent reprocessing
+      if (processedEntries.length > 0) {
+        const processedEntryDocs = processedEntries.map((entry) => ({
+          entryId: entry.entryId,
+          amount: entry.amount,
+          vinCode: entry.vinCode,
+          processedAt: new Date(),
+        }));
 
-          await this.processedEntryModel.insertMany(processedEntryDocs, {
-            ordered: false,
-          });
-        }
+        await this.processedEntryModel.insertMany(processedEntryDocs, {
+          ordered: false,
+        });
+        console.log(`Stored ${processedEntryDocs.length} processed entries (${updates.length} matched cars)`);
       }
     } catch (error) {
       console.error('Error processing statement and updating cars:', error);
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        timestamp: new Date().toISOString(),
+      });
       throw new HttpException(
-        'Failed to process statement and update cars',
+        `Failed to process statement and update cars: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -306,26 +299,66 @@ export class BogApiService {
 
   async getStatement(
     accountNumber: string = 'GE40BG0000000498826082',
-    currency: string = 'USD',
-    startDate: string = '2025-06-01',
-    endDate: string = '2025-06-30',
+    currency: string = 'GEL',
   ): Promise<StatementResponse> {
     try {
+      const usdRate = await this.fetchUsdRate();
       const headers = await this.getAuthHeaders();
-      const url = `${BOG_API_CONFIG.statementEndpoint}/${accountNumber}/${currency}/${startDate}/${endDate}`;
-
+      const url = `${BOG_API_CONFIG.statementEndpoint}/${accountNumber}/${currency}`;
+      console.log('BOG API Request Details:', {
+        url,
+        headers: { ...headers, Authorization: 'Bearer ***' },
+        accountNumber,
+        currency,
+        usdRate,
+        timestamp: new Date().toISOString(),
+      });
       const response = await firstValueFrom(
         this.httpService.get<StatementResponse>(url, { headers }),
       );
-
-      // Process the statement and update cars
-      await this.processStatementAndUpdateCars(response.data);
-
+      console.log('BOG API Response Success:', {
+        status: response.status,
+        recordCount: response.data?.length || 0,
+        usdRate,
+        timestamp: new Date().toISOString(),
+      });
+      await this.processStatementAndUpdateCars(response.data, usdRate);
       return response.data;
     } catch (error) {
-      console.error('Error fetching statement:', error);
+      console.error('BOG API Error Details:', {
+        error: error.message,
+        name: error.name,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+      });
+      if (error.response) {
+        console.error('BOG API HTTP Error Response:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+          headers: error.response.headers,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (error.request) {
+        console.error('BOG API Network Error:', {
+          message: 'No response received from server',
+          code: error.code,
+          errno: error.errno,
+          syscall: error.syscall,
+          hostname: error.hostname,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.log('Authentication error detected, clearing token cache');
+        this.tokenCache = null;
+        throw new HttpException(
+          `Authentication failed for BOG API: ${error.response?.data?.error || error.message}`,
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
       throw new HttpException(
-        'Failed to fetch statement from BOG API',
+        `Failed to fetch statement from BOG API: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

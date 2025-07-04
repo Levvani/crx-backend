@@ -6,56 +6,59 @@ import { BogApiService } from './bog-api.service';
 @Injectable()
 export class BogApiCronService {
   private readonly logger = new Logger(BogApiCronService.name);
+  private isRunning = false; // Add execution lock
 
   constructor(
     private readonly bogApiService: BogApiService,
     private readonly configService: ConfigService,
   ) {}
 
-  @Cron('0 */10 * * * *') // Run every 10 minutes
+  @Cron('0 * * * * *') // Run every minute
   async handleBogApiStatementCron() {
+    if (this.isRunning) {
+      this.logger.warn('Previous BOG API cron job is still running, skipping this execution');
+      return;
+    }
     await this.executeBogApiStatement();
   }
 
   // Manual trigger method for testing
   async triggerBogApiStatement() {
     this.logger.log('Manual trigger of BOG API statement job requested');
+    if (this.isRunning) {
+      this.logger.warn('BOG API job is already running, cannot trigger manually');
+      return { success: false, error: 'Job already running' };
+    }
     return await this.executeBogApiStatement();
   }
 
   private async executeBogApiStatement() {
     const startTime = new Date();
+    this.isRunning = true; // Set lock
     try {
       this.logger.log(`[${startTime.toISOString()}] Starting BOG API statement cron job...`);
 
-      // Get current date in YYYY-MM-DD format
-      const currentDate = new Date().toISOString().split('T')[0];
-
-      // Get previous day in YYYY-MM-DD format
-      const previousDate = new Date();
-      previousDate.setDate(previousDate.getDate() - 1);
-      const previousDateString = previousDate.toISOString().split('T')[0];
+  
 
       // Get configuration from environment variables with defaults
       const accountNumber = this.configService.get<string>(
         'BOG_ACCOUNT_NUMBER',
         'GE40BG0000000498826082',
       );
-      const currency = this.configService.get<string>('BOG_CURRENCY', 'USD');
+      const currency = this.configService.get<string>('BOG_CURRENCY', 'GEL');
 
       this.logger.log(
-        `[${startTime.toISOString()}] Fetching statement from ${previousDateString} to ${currentDate}, account: ${accountNumber}, currency: ${currency}`,
+        `[${startTime.toISOString()}] Fetching statement from, account: ${accountNumber}, currency: ${currency}`,
       );
 
-      // Call the getStatement method with previous day as startDate and current day as endDate
+      // Call the getStatement method
       const result = await this.bogApiService.getStatement(
         accountNumber,
         currency,
-        previousDateString, // startDate - day before current day
-        currentDate, // endDate - current day
+
       );
 
-      const recordCount = result?.Records?.length || 0;
+      const recordCount = result?.length || 0; // Changed from result?.Records?.length || 0
       const endTime = new Date();
       const duration = endTime.getTime() - startTime.getTime();
 
@@ -63,17 +66,10 @@ export class BogApiCronService {
         `[${endTime.toISOString()}] BOG API statement cron job completed successfully in ${duration}ms. Records processed: ${recordCount}`,
       );
 
-      if (recordCount > 0) {
-        this.logger.log(
-          `[${endTime.toISOString()}] Processed ${recordCount} statement records from ${previousDateString} to ${currentDate}`,
-        );
-      }
 
       return {
         success: true,
         recordCount,
-        startDate: previousDateString,
-        endDate: currentDate,
         duration: `${duration}ms`,
         timestamp: endTime.toISOString(),
       };
@@ -105,6 +101,8 @@ export class BogApiCronService {
         duration: `${duration}ms`,
         timestamp: endTime.toISOString(),
       };
+    } finally {
+      this.isRunning = false; // Always release lock
     }
   }
 }

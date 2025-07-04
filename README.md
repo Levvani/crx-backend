@@ -99,6 +99,54 @@ Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 
 # Backend API
 
+## Configuration
+
+### SMTP Email Configuration
+
+The application includes a password reset feature that requires SMTP configuration. Due to recent SSL/TLS security improvements, proper configuration is crucial to avoid connection errors.
+
+#### Quick Setup
+
+Add these environment variables to your `.env` file:
+
+```env
+# SMTP Configuration (Example with Gmail)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# Required for password reset emails
+FRONTEND_URL=https://your-frontend-domain.com
+NODE_ENV=development
+```
+
+#### Common Providers
+
+| Provider | Host | Port | Secure |
+|----------|------|------|--------|
+| Gmail | smtp.gmail.com | 587 | false |
+| Outlook | smtp-mail.outlook.com | 587 | false |
+| Yahoo | smtp.mail.yahoo.com | 587 | false |
+
+**Important**: For Gmail, use App Passwords instead of your regular password. Enable 2FA and generate an App Password in your Google Account settings.
+
+#### Troubleshooting
+
+If you encounter SSL errors like "wrong version number":
+
+1. **Port 587**: Use `SMTP_SECURE=false` (STARTTLS)
+2. **Port 465**: Use `SMTP_SECURE=true` (SSL/TLS)
+3. Check the detailed [SMTP Setup Guide](./SMTP_SETUP.md)
+
+#### Features
+
+- **Retry Logic**: Automatic retry with exponential backoff
+- **Enhanced Security**: TLS 1.2+ with secure cipher suites
+- **Detailed Logging**: Comprehensive error reporting and debugging info
+- **Email Validation**: Proper HTML email templates with security headers
+
 ## Features
 
 ### BOG API Integration
@@ -116,7 +164,7 @@ The application includes integration with BOG (Bank of Georgia) API for automati
 ```bash
 # BOG API Configuration
 BOG_ACCOUNT_NUMBER=GE40BG0000000498826082
-BOG_CURRENCY=USD
+BOG_CURRENCY=GEL
 ```
 
 #### Manual Testing
