@@ -123,6 +123,8 @@ export class CarsService {
       totalCost: createCarDto.totalCost || 0,
       toBePaid: (createCarDto.totalCost || 0) - (createCarDto.paid || 0),
       profit: calculatedProfit, // Use calculated profit instead of DTO value
+      bonusReceiver: createCarDto.bonusReceiver,
+      bonusAmount: createCarDto.bonusAmount,
     });
 
     const savedCar = await newCar.save();
@@ -148,6 +150,13 @@ export class CarsService {
 
     // Update the car properties
     const updateData = { ...updateCarDto } as UpdateCarDto;
+    // Ensure bonusReceiver and bonusAmount are updatable
+    if ('bonusReceiver' in updateCarDto) {
+      updateData.bonusReceiver = updateCarDto.bonusReceiver;
+    }
+    if ('bonusAmount' in updateCarDto) {
+      updateData.bonusAmount = updateCarDto.bonusAmount;
+    }
 
     // Ensure carID cannot be updated even if it's somehow included in the DTO
     if ('carID' in updateData) {

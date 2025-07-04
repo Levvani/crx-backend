@@ -70,6 +70,12 @@ export class Car {
   @Prop({ required: false })
   containerNumber: string;
 
+  @Prop({ required: false })
+  bonusReceiver: string;
+
+  @Prop({ required: false, default: 0 })
+  bonusAmount: number;
+
   @Prop({ default: Date.now })
   createdAt: Date;
 

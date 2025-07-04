@@ -180,6 +180,8 @@ export class CarsController {
             ? car.photos[0]
             : '/assets/car-logo-icon-emblem-design-600nw-473088037.webp',
         photos: car.photos || [], // Add the photos array
+        bonusReceiver: car.bonusReceiver || null,
+        bonusAmount: car.bonusAmount ?? 0,
       };
     });
 
@@ -240,15 +242,13 @@ export class CarsController {
       isTitleTaken: car.isTitleTaken || false,
       doubleRate: car.doubleRate || false,
       oversized: car.oversized || 0,
-
-      // Keep the image field from your original response
       image:
         car.photos && car.photos.length > 0
           ? car.photos[0]
           : '/assets/car-logo-icon-emblem-design-600nw-473088037.webp',
       photos: car.photos || [], // Add the photos array
-      // Remove balanceOfCar as it's being replaced by paymentLeft
-      // balanceOfCar: 0,
+      bonusReceiver: car.bonusReceiver || null,
+      bonusAmount: car.bonusAmount ?? 0,
     };
   }
 
