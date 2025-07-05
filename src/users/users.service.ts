@@ -30,6 +30,41 @@ export class UsersService {
     @InjectModel(Damage.name) private damageModel: Model<DamageDocument>,
   ) {}
 
+  private async resolvePersonalContact(
+    personalContact: string | { firstName: string; lastName: string; phoneNumber: string } | undefined
+  ): Promise<{ firstName: string; lastName: string; phoneNumber: string } | undefined> {
+    if (!personalContact) {
+      return undefined;
+    }
+
+    // If it's already an object, return as is
+    if (typeof personalContact === 'object') {
+      return personalContact;
+    }
+
+    // If it's a string (username), fetch user data
+    if (typeof personalContact === 'string') {
+      try {
+        const user = await this.userModel.findOne({ username: personalContact }).exec();
+        if (!user) {
+          throw new NotFoundException(`User with username '${personalContact}' not found`);
+        }
+        return {
+          firstName: user.firstname,
+          lastName: user.lastname,
+          phoneNumber: user.phoneNumber || '',
+        };
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          throw error;
+        }
+        throw new BadRequestException(`Failed to resolve user '${personalContact}'`);
+      }
+    }
+
+    return undefined;
+  }
+
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     // Check if user already exists
     const existingUser = await this.userModel.findOne({
@@ -61,6 +96,10 @@ export class UsersService {
       nextUserID = createUserDto.userID;
     }
 
+    // Resolve personal contacts
+    const personalManager = await this.resolvePersonalContact(createUserDto.personalManager);
+    const personalExpert = await this.resolvePersonalContact(createUserDto.personalExpert);
+
     // Create new user with explicit properties rather than spreading
     const newUser = new this.userModel({
       userID: nextUserID,
@@ -74,8 +113,8 @@ export class UsersService {
       totalBalance: createUserDto.totalBalance || 0,
       profitBalance: createUserDto.profitBalance || 0,
       phoneNumber: createUserDto.phoneNumber || null,
-      personalManager: createUserDto.personalManager || null,
-      personalExpert: createUserDto.personalExpert || null,
+      personalManager: personalManager || null,
+      personalExpert: personalExpert || null,
     });
 
     return await newUser.save();
@@ -125,8 +164,12 @@ export class UsersService {
         { username: { $regex: search, $options: 'i' } },
         { firstname: { $regex: search, $options: 'i' } },
         { lastname: { $regex: search, $options: 'i' } },
-        { personalManager: { $regex: search, $options: 'i' } },
-        { personalExpert: { $regex: search, $options: 'i' } },
+        { 'personalManager.firstName': { $regex: search, $options: 'i' } },
+        { 'personalManager.lastName': { $regex: search, $options: 'i' } },
+        { 'personalManager.phoneNumber': { $regex: search, $options: 'i' } },
+        { 'personalExpert.firstName': { $regex: search, $options: 'i' } },
+        { 'personalExpert.lastName': { $regex: search, $options: 'i' } },
+        { 'personalExpert.phoneNumber': { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -211,8 +254,12 @@ export class UsersService {
         { username: { $regex: search, $options: 'i' } },
         { firstname: { $regex: search, $options: 'i' } },
         { lastname: { $regex: search, $options: 'i' } },
-        { personalManager: { $regex: search, $options: 'i' } },
-        { personalExpert: { $regex: search, $options: 'i' } },
+        { 'personalManager.firstName': { $regex: search, $options: 'i' } },
+        { 'personalManager.lastName': { $regex: search, $options: 'i' } },
+        { 'personalManager.phoneNumber': { $regex: search, $options: 'i' } },
+        { 'personalExpert.firstName': { $regex: search, $options: 'i' } },
+        { 'personalExpert.lastName': { $regex: search, $options: 'i' } },
+        { 'personalExpert.phoneNumber': { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -433,8 +480,17 @@ export class UsersService {
       throw new NotFoundException(`User with userID ${userID} not found`);
     }
 
-    // Create update object
-    const updateData: Partial<User> = { ...updateUserDto };
+    // Create update object - exclude personalManager and personalExpert for separate processing
+    const { personalManager, personalExpert, ...restUpdateData } = updateUserDto;
+    const updateData: Partial<User> = { ...restUpdateData };
+
+    // Resolve personal contacts if provided
+    if (personalManager !== undefined) {
+      updateData.personalManager = await this.resolvePersonalContact(personalManager);
+    }
+    if (personalExpert !== undefined) {
+      updateData.personalExpert = await this.resolvePersonalContact(personalExpert);
+    }
 
     // Handle notifications specially - detect isRead changes and set seenTime
     if (updateData.notifications && Array.isArray(updateData.notifications)) {

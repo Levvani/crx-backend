@@ -1,4 +1,16 @@
-import { IsEmail, IsOptional, IsString, MinLength, IsNumber, IsBoolean, Min } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength, IsNumber, IsBoolean, Min, ValidateNested, IsObject } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class PersonalContactDto {
+  @IsString()
+  firstName: string;
+
+  @IsString()
+  lastName: string;
+
+  @IsString()
+  phoneNumber: string;
+}
 
 export class UpdateUserDto {
   @IsOptional()
@@ -41,12 +53,10 @@ export class UpdateUserDto {
   phoneNumber?: string;
 
   @IsOptional()
-  @IsString()
-  personalManager?: string;
+  personalManager?: PersonalContactDto | string;
 
   @IsOptional()
-  @IsString()
-  personalExpert?: string;
+  personalExpert?: PersonalContactDto | string;
 
   @IsOptional()
   notifications?: Array<{

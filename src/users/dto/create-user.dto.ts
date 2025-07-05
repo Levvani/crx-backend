@@ -8,8 +8,25 @@ import {
   MinLength,
   IsNumber,
   Min,
+  ValidateNested,
+  IsObject,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { UserRole } from '../schemas/user.schema';
+
+export class PersonalContactDto {
+  @IsNotEmpty()
+  @IsString()
+  firstName: string;
+
+  @IsNotEmpty()
+  @IsString()
+  lastName: string;
+
+  @IsNotEmpty()
+  @IsString()
+  phoneNumber: string;
+}
 
 export class CreateUserDto {
   @IsOptional()
@@ -59,12 +76,10 @@ export class CreateUserDto {
   phoneNumber?: string;
 
   @IsOptional()
-  @IsString()
-  personalManager?: string;
+  personalManager?: PersonalContactDto | string;
 
   @IsOptional()
-  @IsString()
-  personalExpert?: string;
+  personalExpert?: PersonalContactDto | string;
 
   @IsOptional()
   notifications?: Array<{

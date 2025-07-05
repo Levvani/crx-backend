@@ -55,11 +55,33 @@ export class User {
   @Prop({ required: false })
   phoneNumber: string;
 
-  @Prop({ required: false })
-  personalManager: string;
+  @Prop({
+    type: {
+      firstName: { type: String, required: true },
+      lastName: { type: String, required: true },
+      phoneNumber: { type: String, required: true },
+    },
+    required: false,
+  })
+  personalManager: {
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+  };
 
-  @Prop({ required: false })
-  personalExpert: string;
+  @Prop({
+    type: {
+      firstName: { type: String, required: true },
+      lastName: { type: String, required: true },
+      phoneNumber: { type: String, required: true },
+    },
+    required: false,
+  })
+  personalExpert: {
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+  };
 
   @Prop({
     type: [
