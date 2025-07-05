@@ -7,6 +7,7 @@ import {
   IsString,
   MinLength,
   IsNumber,
+  Min,
 } from 'class-validator';
 import { UserRole } from '../schemas/user.schema';
 
@@ -45,10 +46,12 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   totalBalance?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   profitBalance?: number;
 
   @IsOptional()

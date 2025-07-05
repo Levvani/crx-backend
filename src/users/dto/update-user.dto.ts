@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MinLength, IsNumber, IsBoolean } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength, IsNumber, IsBoolean, Min } from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -28,10 +28,12 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   totalBalance?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   profitBalance?: number;
 
   @IsOptional()
