@@ -608,16 +608,28 @@ export class CarsService {
       // Process each car
       for (const car of carsWithFinancing) {
         const financingAmount = car.financingAmount || 0;
-        const currentTotalCost = car.totalCost || 0;
+        const currentInterestSum = car.interestSum || 0;
+        const currentToBePaid = car.toBePaid || 0;
 
         // Calculate 0.3% interest
         const interestAmount = financingAmount * 0.003; // 0.3% = 0.003
 
-        // Add interest to totalCost
-        const newTotalCost = currentTotalCost + interestAmount;
+        // Add interest to interestSum
+        const newInterestSum = currentInterestSum + interestAmount;
 
-        // Update the car
-        await this.carModel.updateOne({ carID: car.carID }, { $set: { totalCost: newTotalCost } });
+        // Add interest to toBePaid
+        const newToBePaid = currentToBePaid + interestAmount;
+
+        // Update the car with new interestSum and toBePaid
+        await this.carModel.updateOne(
+          { carID: car.carID }, 
+          { 
+            $set: { 
+              interestSum: newInterestSum,
+              toBePaid: newToBePaid 
+            } 
+          }
+        );
 
         // Update user's total balance with the interest amount
         try {
@@ -628,7 +640,7 @@ export class CarsService {
         }
 
         console.log(
-          `Applied interest to car ${car.carID} (${car.username}): ${financingAmount} * 0.3% = ${interestAmount}. TotalCost: ${currentTotalCost} -> ${newTotalCost}`,
+          `Applied interest to car ${car.carID} (${car.username}): ${financingAmount} * 0.3% = ${interestAmount}. InterestSum: ${currentInterestSum} -> ${newInterestSum}, ToBePaid: ${currentToBePaid} -> ${newToBePaid}`,
         );
       }
 

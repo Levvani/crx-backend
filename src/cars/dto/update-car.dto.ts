@@ -247,4 +247,15 @@ export class UpdateCarDto {
     return isNaN(num) ? undefined : num;
   })
   bonusAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    const num = Number(value);
+    return isNaN(num) ? undefined : num;
+  })
+  interestSum?: number;
 }

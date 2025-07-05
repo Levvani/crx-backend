@@ -76,6 +76,9 @@ export class Car {
   @Prop({ required: false, default: 0 })
   bonusAmount: number;
 
+  @Prop({ required: false, default: 0 })
+  interestSum: number;
+
   @Prop({ default: Date.now })
   createdAt: Date;
 
