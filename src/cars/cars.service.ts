@@ -103,7 +103,8 @@ export class CarsService {
         const effectiveBasePrice = createCarDto.doubleRate 
           ? priceForLocation.basePrice * 2 
           : priceForLocation.basePrice;
-        calculatedProfit = effectiveTransportationPrice - effectiveBasePrice;
+        const bonusAmount = createCarDto.bonusAmount || 0;
+        calculatedProfit = (effectiveTransportationPrice - effectiveBasePrice) - bonusAmount;
       }
     }
 
@@ -225,8 +226,27 @@ export class CarsService {
           const effectiveBasePrice = is2xActive 
             ? priceForLocation.basePrice * 2 
             : priceForLocation.basePrice;
-          updateData.profit = newTransportationPrice - effectiveBasePrice;
+          const bonusAmount = updateData.bonusAmount ?? (car.bonusAmount || 0);
+          updateData.profit = (newTransportationPrice - effectiveBasePrice) - bonusAmount;
         }
+      }
+    }
+
+    // Calculate profit if only bonusAmount is being updated
+    if (updateData.bonusAmount !== undefined && 
+        updateData.transportationPrice === undefined && 
+        updateData.doubleRate === undefined && 
+        car.location) {
+      const priceForLocation = await this.getPriceForLocation(car.location);
+      if (priceForLocation && priceForLocation.basePrice !== undefined) {
+        const effectiveTransportationPrice = car.doubleRate 
+          ? car.transportationPrice * 2 
+          : car.transportationPrice;
+        const effectiveBasePrice = car.doubleRate 
+          ? priceForLocation.basePrice * 2 
+          : priceForLocation.basePrice;
+        const bonusAmount = updateData.bonusAmount;
+        updateData.profit = (effectiveTransportationPrice - effectiveBasePrice) - bonusAmount;
       }
     }
 
@@ -296,6 +316,28 @@ export class CarsService {
       console.log(
         `Updated user ${updatedCar.username} totalBalance by ${toBePaidDifference} due to toBePaid change from ${originalToBePaid} to ${finalToBePaid}`,
       );
+    }
+
+    // Handle bonus payment when toBePaid becomes 0
+    if (originalToBePaid > 0 && finalToBePaid === 0 && updatedCar.bonusReceiver && updatedCar.bonusAmount) {
+      try {
+        const bonusReceiverUser = await this.usersService.findByUsername(updatedCar.bonusReceiver);
+        const bonusAmount = updatedCar.bonusAmount || 0;
+        
+        await this.usersService.update(bonusReceiverUser.userID, {
+          profitBalance: (bonusReceiverUser.profitBalance || 0) + bonusAmount,
+        });
+
+        console.log(
+          `Added bonus ${bonusAmount} to user ${updatedCar.bonusReceiver} for car ${carID} when toBePaid became 0`,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to update bonus receiver ${updatedCar.bonusReceiver} profit balance for car ${carID}:`,
+          error,
+        );
+        // Don't throw the error to avoid disrupting the car operation
+      }
     }
 
     // If status changed to Green, send SMS notification
@@ -543,6 +585,28 @@ export class CarsService {
         console.error(`Failed to update profit balance for user ${car.username}:`, error);
         // Don't throw the error to avoid disrupting the car operation
       }
+
+      // Handle bonus payment when toBePaid becomes 0
+      if (car.bonusReceiver && car.bonusAmount) {
+        try {
+          const bonusReceiverUser = await this.usersService.findByUsername(car.bonusReceiver);
+          const bonusAmount = car.bonusAmount || 0;
+          
+          await this.usersService.update(bonusReceiverUser.userID, {
+            profitBalance: (bonusReceiverUser.profitBalance || 0) + bonusAmount,
+          });
+
+          console.log(
+            `Added bonus ${bonusAmount} to user ${car.bonusReceiver} for car ${carID} when toBePaid became 0 via updatePaid`,
+          );
+        } catch (error) {
+          console.error(
+            `Failed to update bonus receiver ${car.bonusReceiver} profit balance for car ${carID}:`,
+            error,
+          );
+          // Don't throw the error to avoid disrupting the car operation
+        }
+      }
     } else {
       // Normal case: just increment the paid amount
       await this.carModel.updateOne({ carID }, { $inc: { paid: amount } });
@@ -584,6 +648,28 @@ export class CarsService {
 
     // Update the car's toBePaid value
     await this.carModel.updateOne({ carID }, { $set: { toBePaid: newToBePaid } });
+
+    // Handle bonus payment when toBePaid becomes 0
+    if (currentToBePaid > 0 && newToBePaid === 0 && car.bonusReceiver && car.bonusAmount) {
+      try {
+        const bonusReceiverUser = await this.usersService.findByUsername(car.bonusReceiver);
+        const bonusAmount = car.bonusAmount || 0;
+        
+        await this.usersService.update(bonusReceiverUser.userID, {
+          profitBalance: (bonusReceiverUser.profitBalance || 0) + bonusAmount,
+        });
+
+        console.log(
+          `Added bonus ${bonusAmount} to user ${car.bonusReceiver} for car ${carID} when toBePaid became 0 via transfer`,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to update bonus receiver ${car.bonusReceiver} profit balance for car ${carID}:`,
+          error,
+        );
+        // Don't throw the error to avoid disrupting the car operation
+      }
+    }
 
     console.log(
       `Transferred ${amount} from car ${carID}. User ${car.username} profitBalance: ${currentProfitBalance} -> ${newProfitBalance}, totalBalance: ${currentTotalBalance} -> ${newTotalBalance}. Car toBePaid: ${currentToBePaid} -> ${newToBePaid}`,
