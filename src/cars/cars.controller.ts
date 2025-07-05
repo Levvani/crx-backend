@@ -76,7 +76,7 @@ export class CarsController {
 
   @Put(':carID')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.DEALER)
   @UseInterceptors(FileFieldsInterceptor([{ name: 'photos', maxCount: 10 }]))
   async update(
     @Param('carID', ParseIntPipe) carID: number,
@@ -90,10 +90,42 @@ export class CarsController {
     )
     updateCarDto: UpdateCarDto,
     @UploadedFiles() files: { photos?: Express.Multer.File[] },
+    @Request() req: { user: { role: UserRole; username: string } },
   ): Promise<Car> {
+    // For dealers, restrict updates to only buyer-related fields
+    if (req.user.role === UserRole.DEALER) {
+      // Check if the car belongs to the dealer
+      const car = await this.carsService.findOne(carID);
+      if (car.username !== req.user.username) {
+        throw new ForbiddenException('You do not have permission to update this car');
+      }
+
+      // Create a restricted DTO with only allowed fields
+      const restrictedDto: UpdateCarDto = {};
+      
+      // Only allow buyer-related fields
+      if (updateCarDto.buyer !== undefined) {
+        restrictedDto.buyer = updateCarDto.buyer;
+      }
+      if (updateCarDto.buyerPN !== undefined) {
+        restrictedDto.buyerPN = updateCarDto.buyerPN;
+      }
+      if (updateCarDto.buyerPhone !== undefined) {
+        restrictedDto.buyerPhone = updateCarDto.buyerPhone;
+      }
+
+      // If dealer tries to update other fields, ignore them
+      console.log('Dealer update - restricted fields only:', restrictedDto);
+      
+      // Ensure we have an array of files, even if empty
+      const photos = files?.photos || [];
+      return this.carsService.update(carID, restrictedDto as CreateCarDto, photos);
+    }
+
+    // For ADMIN and MODERATOR, allow all updates
     // Ensure we have an array of files, even if empty
     const photos = files?.photos || [];
-    console.log('Update DTO:', updateCarDto);
+    console.log('Admin/Moderator update DTO:', updateCarDto);
     return this.carsService.update(carID, updateCarDto as CreateCarDto, photos);
   }
 
