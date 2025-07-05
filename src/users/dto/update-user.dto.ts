@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MinLength, IsNumber, IsBoolean, Min, ValidateNested, IsObject } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength, IsNumber, IsBoolean, Min, ValidateNested, IsObject, IsArray, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PersonalContactDto {
@@ -10,6 +10,32 @@ export class PersonalContactDto {
 
   @IsString()
   phoneNumber: string;
+}
+
+export class NotificationUpdateDto {
+  @IsNumber()
+  id: number;
+
+  @IsBoolean()
+  isRead: boolean;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  createTime?: Date;
+
+  @IsOptional()
+  seenTime?: Date | null;
+}
+
+export class DealerUpdateDto {
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => NotificationUpdateDto)
+  notifications?: NotificationUpdateDto[];
 }
 
 export class UpdateUserDto {

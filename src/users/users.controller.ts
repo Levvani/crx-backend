@@ -1,5 +1,5 @@
 // src/users/users.controller.ts
-import { Controller, Get, Param, UseGuards, Put, Body, Query, Delete, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Put, Body, Query, Delete, Request, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -9,7 +9,7 @@ import { Model } from 'mongoose';
 import { User, UserDocument, UserRole } from './schemas/user.schema';
 import { NotFoundException } from '@nestjs/common';
 import { PaginationDto } from './dto/pagination.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserDto, DealerUpdateDto } from './dto/update-user.dto';
 
 // Define the JWT user interface
 interface JwtUser {
@@ -108,9 +108,70 @@ export class UsersController {
   }
 
   @Put(':id')
-  @Roles(UserRole.ADMIN)
-  async updateUser(@Param('id') id: number, @Body() updateUserDto: UpdateUserDto) {
-    const user = await this.usersService.update(id, updateUserDto);
+  @Roles(UserRole.ADMIN, UserRole.DEALER)
+  async updateUser(
+    @Param('id') id: number, 
+    @Body() updateData: UpdateUserDto | DealerUpdateDto,
+    @Request() req: RequestWithUser
+  ) {
+    const currentUser = req.user;
+    
+    // If the user is a dealer, they can only update their own profile
+    if (currentUser.role === UserRole.DEALER && currentUser.userID !== id) {
+      throw new ForbiddenException('Dealers can only update their own user information');
+    }
+    
+    // If the user is a dealer, validate that they're only updating notifications
+    if (currentUser.role === UserRole.DEALER) {
+      // Check if updateData has any fields other than notifications
+      const allowedFields = ['notifications'];
+      const providedFields = Object.keys(updateData);
+      const invalidFields = providedFields.filter(field => !allowedFields.includes(field));
+      
+      if (invalidFields.length > 0) {
+        throw new BadRequestException(`Dealers can only update notifications. Invalid fields: ${invalidFields.join(', ')}`);
+      }
+      
+      // Validate that notifications array only contains allowed updates
+      if (updateData.notifications && Array.isArray(updateData.notifications)) {
+        const currentUser = await this.usersService.findById(id);
+        const currentNotifications = currentUser.notifications || [];
+        
+        // Check each notification update
+        for (const notificationUpdate of updateData.notifications) {
+          // Find the corresponding current notification
+          const currentNotification = currentNotifications.find(
+            (curr) => curr.id === notificationUpdate.id
+          );
+          
+          if (!currentNotification) {
+            throw new BadRequestException(`Notification with ID ${notificationUpdate.id} not found`);
+          }
+          
+          // Check if dealer is trying to modify anything other than isRead
+          const allowedNotificationFields = ['id', 'isRead'];
+          const providedNotificationFields = Object.keys(notificationUpdate);
+          const invalidNotificationFields = providedNotificationFields.filter(
+            field => !allowedNotificationFields.includes(field)
+          );
+          
+          if (invalidNotificationFields.length > 0) {
+            throw new BadRequestException(
+              `Dealers can only update the 'isRead' property of notifications. Invalid fields: ${invalidNotificationFields.join(', ')}`
+            );
+          }
+          
+          // Preserve original notification data and only update isRead
+          Object.assign(notificationUpdate, {
+            message: currentNotification.message,
+            createTime: currentNotification.createTime,
+            seenTime: currentNotification.seenTime
+          });
+        }
+      }
+    }
+    
+    const user = await this.usersService.update(id, updateData as UpdateUserDto);
     // Remove password from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user.toObject() as User;
