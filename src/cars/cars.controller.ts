@@ -193,6 +193,7 @@ export class CarsController {
         location: car.location || null,
         lotNumber: car.lotNumber || null,
         vinCode: car.vinCode || null,
+        status: car.status || null,
         username: car.username || null,
         carName: car.carName || null,
         buyer: car.buyer || null,

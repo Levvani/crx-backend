@@ -123,8 +123,8 @@ export class UsersController {
     
     // If the user is a dealer, validate that they're only updating notifications
     if (currentUser.role === UserRole.DEALER) {
-      // Check if updateData has any fields other than notifications
-      const allowedFields = ['notifications'];
+      // Check if updateData has any fields other than notificationUpdate
+      const allowedFields = ['notificationUpdate'];
       const providedFields = Object.keys(updateData);
       const invalidFields = providedFields.filter(field => !allowedFields.includes(field));
       
@@ -132,45 +132,27 @@ export class UsersController {
         throw new BadRequestException(`Dealers can only update notifications. Invalid fields: ${invalidFields.join(', ')}`);
       }
       
-      // Validate that notifications array only contains allowed updates
-      if (updateData.notifications && Array.isArray(updateData.notifications)) {
-        const currentUser = await this.usersService.findById(id);
-        const currentNotifications = currentUser.notifications || [];
-        
-        // Check each notification update
-        for (const notificationUpdate of updateData.notifications) {
-          // Find the corresponding current notification
-          const currentNotification = currentNotifications.find(
-            (curr) => curr.id === notificationUpdate.id
-          );
-          
-          if (!currentNotification) {
-            throw new BadRequestException(`Notification with ID ${notificationUpdate.id} not found`);
-          }
-          
-          // Check if dealer is trying to modify anything other than isRead
-          const allowedNotificationFields = ['id', 'isRead'];
-          const providedNotificationFields = Object.keys(notificationUpdate);
-          const invalidNotificationFields = providedNotificationFields.filter(
-            field => !allowedNotificationFields.includes(field)
-          );
-          
-          if (invalidNotificationFields.length > 0) {
-            throw new BadRequestException(
-              `Dealers can only update the 'isRead' property of notifications. Invalid fields: ${invalidNotificationFields.join(', ')}`
-            );
-          }
-          
-          // Preserve original notification data and only update isRead
-          Object.assign(notificationUpdate, {
-            message: currentNotification.message,
-            createTime: currentNotification.createTime,
-            seenTime: currentNotification.seenTime
-          });
-        }
+      // Cast to DealerUpdateDto to access notificationUpdate
+      const dealerUpdateData = updateData as DealerUpdateDto;
+      
+      // Handle single notification update
+      if (dealerUpdateData.notificationUpdate) {
+        const user = await this.usersService.updateNotification(
+          id, 
+          dealerUpdateData.notificationUpdate.notificationId, 
+          dealerUpdateData.notificationUpdate.isRead
+        );
+        // Remove password from response
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password, ...result } = user.toObject() as User;
+        return result;
       }
+      
+      // If no valid notification update was provided
+      throw new BadRequestException('Dealers must provide notificationUpdate field');
     }
     
+    // For admin users only
     const user = await this.usersService.update(id, updateData as UpdateUserDto);
     // Remove password from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

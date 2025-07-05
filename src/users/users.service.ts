@@ -628,6 +628,54 @@ export class UsersService {
     return deletedUser;
   }
 
+  async updateNotification(userID: number, notificationId: number, isRead: boolean): Promise<UserDocument> {
+    if (isNaN(userID)) {
+      throw new BadRequestException(`Invalid userID format: ${userID}`);
+    }
+
+    // Check if user exists
+    const existingUser = await this.userModel.findOne({ userID }).exec();
+    if (!existingUser) {
+      throw new NotFoundException(`User with userID ${userID} not found`);
+    }
+
+    // Check if notification exists
+    const notification = existingUser.notifications?.find(n => n.id === notificationId);
+    if (!notification) {
+      throw new NotFoundException(`Notification with ID ${notificationId} not found`);
+    }
+
+    // Prepare update object
+    const updateData: any = {
+      'notifications.$.isRead': isRead,
+    };
+
+    // If changing from false to true, set seenTime
+    if (!notification.isRead && isRead === true) {
+      updateData['notifications.$.seenTime'] = new Date();
+    }
+
+    // Update the specific notification in the array
+    const updatedUser = await this.userModel
+      .findOneAndUpdate(
+        { 
+          userID: userID,
+          'notifications.id': notificationId 
+        },
+        { 
+          $set: updateData 
+        },
+        { new: true }
+      )
+      .exec();
+
+    if (!updatedUser) {
+      throw new NotFoundException(`Failed to update notification`);
+    }
+
+    return updatedUser;
+  }
+
   // CRITICAL FIX: Add transaction-based token management for extra safety
   private async executeTokenOperationSafely<T>(
     userID: number,

@@ -12,30 +12,19 @@ export class PersonalContactDto {
   phoneNumber: string;
 }
 
-export class NotificationUpdateDto {
+export class SingleNotificationUpdateDto {
   @IsNumber()
-  id: number;
+  notificationId: number;
 
   @IsBoolean()
   isRead: boolean;
-
-  @IsOptional()
-  @IsString()
-  message?: string;
-
-  @IsOptional()
-  createTime?: Date;
-
-  @IsOptional()
-  seenTime?: Date | null;
 }
 
 export class DealerUpdateDto {
   @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => NotificationUpdateDto)
-  notifications?: NotificationUpdateDto[];
+  @ValidateNested()
+  @Type(() => SingleNotificationUpdateDto)
+  notificationUpdate?: SingleNotificationUpdateDto;
 }
 
 export class UpdateUserDto {
