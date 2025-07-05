@@ -436,6 +436,32 @@ export class UsersService {
     // Create update object
     const updateData: Partial<User> = { ...updateUserDto };
 
+    // Handle notifications specially - detect isRead changes and set seenTime
+    if (updateData.notifications && Array.isArray(updateData.notifications)) {
+      const currentNotifications = existingUser.notifications || [];
+      
+      updateData.notifications = updateData.notifications.map((newNotification) => {
+        // Find the corresponding current notification by id
+        const currentNotification = currentNotifications.find(
+          (curr) => curr.id === newNotification.id
+        );
+        
+        // If isRead is changing from false to true, set seenTime to current date
+        if (
+          currentNotification &&
+          !currentNotification.isRead &&
+          newNotification.isRead === true
+        ) {
+          return {
+            ...newNotification,
+            seenTime: new Date(),
+          };
+        }
+        
+        return newNotification;
+      });
+    }
+
     // If password is provided, hash it
     if (updateData.password) {
       const salt = await bcrypt.genSalt();

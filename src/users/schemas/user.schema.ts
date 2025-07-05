@@ -61,6 +61,26 @@ export class User {
   @Prop({ required: false })
   personalExpert: string;
 
+  @Prop({
+    type: [
+      {
+        id: { type: Number, required: true, unique: true },
+        isRead: { type: Boolean, default: false },
+        message: { type: String, required: true },
+        createTime: { type: Date, default: Date.now },
+        seenTime: { type: Date, default: null },
+      },
+    ],
+    default: [],
+  })
+  notifications: Array<{
+    id: number;
+    isRead: boolean;
+    message: string;
+    createTime: Date;
+    seenTime: Date | null;
+  }>;
+
   @Prop({ default: Date.now })
   createdAt: Date;
 

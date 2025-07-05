@@ -16,7 +16,7 @@ export class Car {
   @Prop({ required: true })
   username: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   vinCode: string;
 
   @Prop({ required: true })

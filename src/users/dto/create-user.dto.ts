@@ -65,4 +65,13 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   personalExpert?: string;
+
+  @IsOptional()
+  notifications?: Array<{
+    id: number;
+    isRead: boolean;
+    message: string;
+    createTime: Date;
+    seenTime: Date | null;
+  }>;
 }

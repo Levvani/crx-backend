@@ -1,5 +1,5 @@
 // src/users/users.controller.ts
-import { Controller, Get, Param, UseGuards, Put, Body, Query, Delete } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Put, Body, Query, Delete, Request, ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -10,6 +10,18 @@ import { User, UserDocument, UserRole } from './schemas/user.schema';
 import { NotFoundException } from '@nestjs/common';
 import { PaginationDto } from './dto/pagination.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+
+// Define the JWT user interface
+interface JwtUser {
+  userID: number;
+  username: string;
+  role: UserRole;
+  level?: string;
+}
+
+interface RequestWithUser extends Request {
+  user: JwtUser;
+}
 
 @Controller('users')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -77,8 +89,15 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.ACCOUNTANT)
-  async findOne(@Param('id') id: number) {
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR, UserRole.ACCOUNTANT, UserRole.DEALER)
+  async findOne(@Param('id') id: number, @Request() req: RequestWithUser) {
+    const currentUser = req.user;
+    
+    // If the user is a dealer, they can only access their own data
+    if (currentUser.role === UserRole.DEALER && currentUser.userID !== id) {
+      throw new ForbiddenException('Dealers can only access their own user information');
+    }
+    
     const user = await this.usersService.findById(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
