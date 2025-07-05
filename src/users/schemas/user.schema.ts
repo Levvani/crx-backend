@@ -55,6 +55,12 @@ export class User {
   @Prop({ required: false })
   phoneNumber: string;
 
+  @Prop({ required: false })
+  personalManager: string;
+
+  @Prop({ required: false })
+  personalExpert: string;
+
   @Prop({ default: Date.now })
   createdAt: Date;
 

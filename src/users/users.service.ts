@@ -74,6 +74,8 @@ export class UsersService {
       totalBalance: createUserDto.totalBalance || 0,
       profitBalance: createUserDto.profitBalance || 0,
       phoneNumber: createUserDto.phoneNumber || null,
+      personalManager: createUserDto.personalManager || null,
+      personalExpert: createUserDto.personalExpert || null,
     });
 
     return await newUser.save();
@@ -123,6 +125,8 @@ export class UsersService {
         { username: { $regex: search, $options: 'i' } },
         { firstname: { $regex: search, $options: 'i' } },
         { lastname: { $regex: search, $options: 'i' } },
+        { personalManager: { $regex: search, $options: 'i' } },
+        { personalExpert: { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -207,6 +211,8 @@ export class UsersService {
         { username: { $regex: search, $options: 'i' } },
         { firstname: { $regex: search, $options: 'i' } },
         { lastname: { $regex: search, $options: 'i' } },
+        { personalManager: { $regex: search, $options: 'i' } },
+        { personalExpert: { $regex: search, $options: 'i' } },
       ];
     }
 
