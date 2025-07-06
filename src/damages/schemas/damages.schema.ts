@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Min } from 'class-validator';
 import { Document } from 'mongoose';
 
 export enum DamageStatus {
@@ -27,7 +28,12 @@ export class Damage {
   comment: string;
 
   @Prop({ required: true })
+  @Min(0)
   amount: number;
+
+  @Prop()
+  @Min(0)
+  approvedAmount: number;
 
   @Prop()
   imageUrl: string;

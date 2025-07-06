@@ -159,20 +159,77 @@ export class DamagesService {
   }
 
   async update(damageID: number, updateDamageDto: UpdateDamageDto): Promise<DamageDocument> {
-    // Restrict updates to only status and approverComment
-    const updateData = {
-      status: updateDamageDto.status,
-      approverComment: updateDamageDto.approverComment,
+    // First, get the current damage to check previous status and details
+    const currentDamage = await this.damageModel.findOne({ damageID }).exec();
+    if (!currentDamage) {
+      throw new NotFoundException(`Damage with ID ${damageID} not found`);
+    }
+
+    // Check if status is changing to 'approved' for the first time
+    const isStatusChangingToApproved = 
+      updateDamageDto.status === 'approved' && 
+      currentDamage.status !== 'approved';
+
+    // Check if we're updating an already approved damage with a different approvedAmount
+    const isUpdatingApprovedAmount = 
+      currentDamage.status === 'approved' && 
+      updateDamageDto.status === 'approved' &&
+      updateDamageDto.approvedAmount !== undefined &&
+      updateDamageDto.approvedAmount !== currentDamage.approvedAmount;
+
+    // Handle profit balance updates
+    if (isStatusChangingToApproved) {
+      // First time approval - add amount to profitBalance
+      const amountToAdd = updateDamageDto.approvedAmount ?? currentDamage.amount;
+      
+      await this.usersService.updateProfitBalanceByUsername(currentDamage.username, amountToAdd);
+
+      console.log(
+        `Damage ${damageID} approved. Added ${amountToAdd} to ${currentDamage.username}'s profitBalance`
+      );
+    } else if (isUpdatingApprovedAmount) {
+      // Already approved, but changing the approved amount
+      const previousAmount = currentDamage.approvedAmount ?? currentDamage.amount;
+      const newAmount = updateDamageDto.approvedAmount;
+      const difference = newAmount - previousAmount;
+
+      // Adjust profitBalance by the difference
+      await this.usersService.updateProfitBalanceByUsername(currentDamage.username, difference);
+
+      console.log(
+        `Damage ${damageID} approved amount updated. Previous: ${previousAmount}, New: ${newAmount}, Difference: ${difference}. Updated ${currentDamage.username}'s profitBalance`
+      );
+    }
+
+    // Prepare update data - only include fields that are actually provided
+    const updateData: any = {
       updatedAt: new Date(),
     };
 
+    // Only add fields that are provided (not undefined)
+    if (updateDamageDto.status !== undefined) {
+      updateData.status = updateDamageDto.status;
+    }
+    if (updateDamageDto.approverComment !== undefined) {
+      updateData.approverComment = updateDamageDto.approverComment;
+    }
+    if (updateDamageDto.approvedAmount !== undefined) {
+      updateData.approvedAmount = updateDamageDto.approvedAmount;
+    }
+
     // Update the damage and return the updated document
-    return this.damageModel
+    const updatedDamage = await this.damageModel
       .findOneAndUpdate(
         { damageID },
         { $set: updateData },
         { new: true }, // Return the updated document
       )
       .exec();
+
+    if (!updatedDamage) {
+      throw new NotFoundException(`Failed to update damage with ID ${damageID}`);
+    }
+
+    return updatedDamage;
   }
 }

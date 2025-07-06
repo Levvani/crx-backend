@@ -25,6 +25,11 @@ export class CreateDamageDto {
   amount: number;
 
   @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  approvedAmount: number;
+
+  @IsOptional()
   @IsString()
   imageUrl: string;
 

@@ -1,4 +1,5 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsNumber, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import { DamageStatus } from '../schemas/damages.schema';
 
 export class UpdateDamageDto {
@@ -9,4 +10,10 @@ export class UpdateDamageDto {
   @IsString()
   @IsOptional()
   approverComment?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  approvedAmount?: number;
 }

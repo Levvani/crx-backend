@@ -574,6 +574,22 @@ export class UsersService {
     await this.userModel.updateOne({ userID }, { $set: { totalBalance: finalBalance } });
   }
 
+  async updateProfitBalanceByUsername(username: string, amount: number): Promise<void> {
+    // First, get the current user to check the resulting balance
+    const user = await this.userModel.findOne({ username }).exec();
+    if (!user) {
+      throw new NotFoundException(`User with username ${username} not found`);
+    }
+
+    const currentBalance = user.profitBalance || 0;
+    const newBalance = currentBalance + amount;
+
+    // If the new balance would be negative, set it to 0 instead
+    const finalBalance = newBalance < 0 ? 0 : newBalance;
+
+    await this.userModel.updateOne({ username }, { $set: { profitBalance: finalBalance } });
+  }
+
   async delete(userID: number): Promise<UserDocument> {
     if (isNaN(userID)) {
       throw new BadRequestException(`Invalid userID format: ${userID}`);
