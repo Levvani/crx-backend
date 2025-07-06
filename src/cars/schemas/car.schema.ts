@@ -65,6 +65,12 @@ export class Car {
   transportationPrice: number;
 
   @Prop({ required: false, default: 0 })
+  auctionPriceToPay: number;
+
+  @Prop({ required: false, default: 0 })
+  transPriceToPay: number;
+
+  @Prop({ required: false, default: 0 })
   totalCost: number;
 
   @Prop({ required: false })

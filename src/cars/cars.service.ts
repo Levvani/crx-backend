@@ -113,6 +113,18 @@ export class CarsService {
       ? createCarDto.transportationPrice * 2 
       : createCarDto.transportationPrice || 0;
 
+    // Set automatic price tracking fields
+    const auctionPriceToPay = createCarDto.auctionPrice || 0;
+    // Apply doubleRate to transPriceToPay as well if enabled
+    const baseTranSpriceToPay = createCarDto.transportationPrice || 0;
+    const transPriceToPay = createCarDto.doubleRate 
+      ? baseTranSpriceToPay * 2 
+      : baseTranSpriceToPay;
+
+    // Calculate toBePaid based on prices that customer needs to pay (including doubleRate effect)
+    const totalToPay = auctionPriceToPay + transPriceToPay;
+    const toBePaid = Math.max(0, totalToPay - (createCarDto.paid || 0));
+
     // Create a new car with values from DTO (no automatic calculations)
     const newCar = new this.carModel({
       ...createCarDto,
@@ -121,8 +133,10 @@ export class CarsService {
       photos: photoUrls, // Store cloud storage URLs instead of local paths
       // Use values from DTO or defaults
       transportationPrice: finalTransportationPrice,
+      auctionPriceToPay: auctionPriceToPay,
+      transPriceToPay: transPriceToPay,
       totalCost: createCarDto.totalCost || 0,
-      toBePaid: (createCarDto.totalCost || 0) - (createCarDto.paid || 0),
+      toBePaid: toBePaid, // Use calculated toBePaid based on ToPay fields
       profit: calculatedProfit, // Use calculated profit instead of DTO value
       bonusReceiver: createCarDto.bonusReceiver,
       bonusAmount: createCarDto.bonusAmount,
@@ -130,9 +144,9 @@ export class CarsService {
 
     const savedCar = await newCar.save();
 
-    // Update user's total balance if totalCost exists
-    if (savedCar.totalCost) {
-      await this.updateUserTotalBalance(savedCar.username, savedCar.totalCost);
+    // Update user's total balance with the amount they actually owe (toBePaid)
+    if (savedCar.toBePaid && savedCar.toBePaid > 0) {
+      await this.updateUserTotalBalance(savedCar.username, savedCar.toBePaid);
     }
 
     return savedCar;
@@ -196,6 +210,10 @@ export class CarsService {
     if (updateData.transportationPrice !== undefined || updateData.auctionPrice !== undefined || updateData.doubleRate !== undefined) {
       let newTransportationPrice = updateData.transportationPrice ?? car.transportationPrice;
       
+      // Capture original values for "ToPay" fields before any modifications
+      const originalTransportationPriceForToPay = updateData.transportationPrice;
+      const originalAuctionPriceForToPay = updateData.auctionPrice;
+      
       // Apply 2x multiplier if 2x field is being set to true or if it's already true and transportationPrice is being updated
       const is2xActive = updateData.doubleRate ?? car.doubleRate;
       if (is2xActive && updateData.transportationPrice !== undefined) {
@@ -213,12 +231,7 @@ export class CarsService {
 
       const newAuctionPrice = updateData.auctionPrice ?? car.auctionPrice;
       updateData.totalCost = newTransportationPrice + newAuctionPrice;
-      if (updateData.totalCost >= car.paid) {
-        updateData.toBePaid = updateData.totalCost - car.paid;
-      } else {
-        updateData.toBePaid = 0;
-      }
-
+      
       // Calculate profit if transportationPrice is being updated or 2x field is changed
       if ((updateData.transportationPrice !== undefined || updateData.doubleRate !== undefined) && car.location) {
         const priceForLocation = await this.getPriceForLocation(car.location);
@@ -230,6 +243,40 @@ export class CarsService {
           updateData.profit = (newTransportationPrice - effectiveBasePrice) - bonusAmount;
         }
       }
+        
+      // Automatically update "ToPay" fields when corresponding prices are updated
+      if (originalAuctionPriceForToPay !== undefined) {
+        updateData.auctionPriceToPay = originalAuctionPriceForToPay;
+      }
+      if (originalTransportationPriceForToPay !== undefined) {
+        // Set transPriceToPay considering doubleRate
+        updateData.transPriceToPay = is2xActive 
+          ? originalTransportationPriceForToPay * 2 
+          : originalTransportationPriceForToPay;
+      }
+      
+      // Handle transPriceToPay when only doubleRate changes (without transportationPrice update)
+      if (updateData.doubleRate !== undefined && originalTransportationPriceForToPay === undefined) {
+        // Get the base transportation price (current price divided by current doubleRate factor)
+        const currentTransportationPrice = car.transportationPrice || 0;
+        const baseTransportationPrice = car.doubleRate ? currentTransportationPrice / 2 : currentTransportationPrice;
+        
+        if (updateData.doubleRate === true) {
+          // Activating 2x: transPriceToPay should be doubled base price
+          updateData.transPriceToPay = baseTransportationPrice * 2;
+        } else if (updateData.doubleRate === false) {
+          // Deactivating 2x: transPriceToPay should be base price
+          updateData.transPriceToPay = baseTransportationPrice;
+        }
+      }
+
+      // Calculate toBePaid based on ToPay fields instead of totalCost
+      const finalAuctionPriceToPay = updateData.auctionPriceToPay ?? car.auctionPriceToPay ?? 0;
+      const finalTransPriceToPay = updateData.transPriceToPay ?? car.transPriceToPay ?? 0;
+      const totalToPay = finalAuctionPriceToPay + finalTransPriceToPay;
+      const currentPaid = car.paid || 0;
+      
+      updateData.toBePaid = Math.max(0, totalToPay - currentPaid);
     }
 
     // Calculate profit if only bonusAmount is being updated
@@ -268,17 +315,19 @@ export class CarsService {
 
     // Check if paid exceeds totalCost and handle profit
     const carPaid = updatedCar.paid || 0;
-    const carTotalCost = updatedCar.totalCost || 0;
+    const carAuctionPriceToPay = updatedCar.auctionPriceToPay || 0;
+    const carTransPriceToPay = updatedCar.transPriceToPay || 0;
+    const carTotalToPay = carAuctionPriceToPay + carTransPriceToPay;
 
-    if (carPaid > carTotalCost && carTotalCost > 0) {
-      const profitAmount = carPaid - carTotalCost;
+    if (carPaid > carTotalToPay && carTotalToPay > 0) {
+      const profitAmount = carPaid - carTotalToPay;
 
-      // Update car: set paid to totalCost and toBePaid to 0
+      // Update car: set paid to totalToPay and toBePaid to 0
       await this.carModel.updateOne(
         { carID },
         {
           $set: {
-            paid: car.totalCost,
+            paid: carTotalToPay,
             toBePaid: 0,
           },
         },
@@ -555,19 +604,21 @@ export class CarsService {
     }
 
     const currentPaid = car.paid || 0;
-    const totalCost = car.totalCost || 0;
+    const auctionPriceToPay = car.auctionPriceToPay || 0;
+    const transPriceToPay = car.transPriceToPay || 0;
+    const totalToPay = auctionPriceToPay + transPriceToPay;
     const newPaid = currentPaid + amount;
 
-    // Check if new paid amount exceeds totalCost
-    if (newPaid > totalCost && totalCost > 0) {
-      const profitAmount = newPaid - totalCost;
+    // Check if new paid amount exceeds what customer actually owes (ToPay fields)
+    if (newPaid > totalToPay && totalToPay > 0) {
+      const profitAmount = newPaid - totalToPay;
 
-      // Update car: set paid to totalCost and toBePaid to 0
+      // Update car: set paid to totalToPay and toBePaid to 0
       await this.carModel.updateOne(
         { carID },
         {
           $set: {
-            paid: totalCost,
+            paid: totalToPay,
             toBePaid: 0,
           },
         },
@@ -613,11 +664,31 @@ export class CarsService {
     }
   }
 
-  async transfer(carID: number, amount: number): Promise<void> {
+  async transfer(carID: number, amount: number, transferType: number): Promise<void> {
+    // Validate transferType parameter
+    if (transferType !== 1 && transferType !== 2) {
+      throw new BadRequestException('Please select transfer type');
+    }
+
     // Find the car by carID
     const car = await this.carModel.findOne({ carID }).exec();
     if (!car) {
       throw new NotFoundException(`Car with carID ${carID} not found`);
+    }
+
+    const currentAuctionPriceToPay = car.auctionPriceToPay || 0;
+    const currentTransPriceToPay = car.transPriceToPay || 0;
+
+    // Validate that there's enough in the specific price component to deduct
+    if (transferType === 1 && currentAuctionPriceToPay < amount) {
+      throw new BadRequestException(
+        `Insufficient auction price to pay. Current auctionPriceToPay is ${currentAuctionPriceToPay} but ${amount} is required`,
+      );
+    }
+    if (transferType === 2 && currentTransPriceToPay < amount) {
+      throw new BadRequestException(
+        `Insufficient transportation price to pay. Current transPriceToPay is ${currentTransPriceToPay} but ${amount} is required`,
+      );
     }
 
     // Get the user linked to this car
@@ -641,13 +712,31 @@ export class CarsService {
       totalBalance: newTotalBalance,
     });
 
+    // Update the specific price component based on transferType
+    let updateFields: any = {};
+    let newAuctionPriceToPay = currentAuctionPriceToPay;
+    let newTransPriceToPay = currentTransPriceToPay;
+
+    if (transferType === 1) {
+      // Deduct from auctionPriceToPay
+      newAuctionPriceToPay = Math.max(0, currentAuctionPriceToPay - amount);
+      updateFields.auctionPriceToPay = newAuctionPriceToPay;
+    } else if (transferType === 2) {
+      // Deduct from transPriceToPay
+      newTransPriceToPay = Math.max(0, currentTransPriceToPay - amount);
+      updateFields.transPriceToPay = newTransPriceToPay;
+    }
+
+    // Recalculate toBePaid based on updated ToPay fields
+    const newTotalToPay = newAuctionPriceToPay + newTransPriceToPay;
+    const currentPaid = car.paid || 0;
+    const newToBePaid = Math.max(0, newTotalToPay - currentPaid);
+    updateFields.toBePaid = newToBePaid;
+
+    // Update the car with new values
+    await this.carModel.updateOne({ carID }, { $set: updateFields });
+
     const currentToBePaid = car.toBePaid || 0;
-
-    // Calculate new toBePaid value after deducting the amount
-    const newToBePaid = Math.max(0, currentToBePaid - amount);
-
-    // Update the car's toBePaid value
-    await this.carModel.updateOne({ carID }, { $set: { toBePaid: newToBePaid } });
 
     // Handle bonus payment when toBePaid becomes 0
     if (currentToBePaid > 0 && newToBePaid === 0 && car.bonusReceiver && car.bonusAmount) {
@@ -671,8 +760,9 @@ export class CarsService {
       }
     }
 
+    const transferTypeText = transferType === 1 ? 'auctionPriceToPay' : 'transPriceToPay';
     console.log(
-      `Transferred ${amount} from car ${carID}. User ${car.username} profitBalance: ${currentProfitBalance} -> ${newProfitBalance}, totalBalance: ${currentTotalBalance} -> ${newTotalBalance}. Car toBePaid: ${currentToBePaid} -> ${newToBePaid}`,
+      `Transferred ${amount} from car ${carID} (${transferTypeText}). User ${car.username} profitBalance: ${currentProfitBalance} -> ${newProfitBalance}, totalBalance: ${currentTotalBalance} -> ${newTotalBalance}. Car toBePaid: ${currentToBePaid} -> ${newToBePaid}`,
     );
   }
 

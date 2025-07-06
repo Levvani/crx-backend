@@ -215,6 +215,8 @@ export class CarsController {
         photos: car.photos || [], // Add the photos array
         bonusReceiver: car.bonusReceiver || null,
         bonusAmount: car.bonusAmount ?? 0,
+        auctionPriceToPay: car.auctionPriceToPay ?? 0,
+        transPriceToPay: car.transPriceToPay ?? 0,
       };
     });
 
@@ -261,6 +263,8 @@ export class CarsController {
       buyerPhone: car.buyerPhone || null,
       auctionPrice: car.auctionPrice ?? 0,
       transportationPrice: car.transportationPrice ?? 0,
+      auctionPriceToPay: car.auctionPriceToPay ?? 0,
+      transPriceToPay: car.transPriceToPay ?? 0,
       totalCost: car.totalCost ?? 0,
       paid: car.paid ?? 0,
       toBePaid: car.toBePaid ?? 0,
@@ -307,7 +311,8 @@ export class CarsController {
       }
     }
 
-    await this.carsService.transfer(transferDto.id, transferDto.amount);
-    return { message: `Successfully transferred ${transferDto.amount} from car ${transferDto.id}` };
+    await this.carsService.transfer(transferDto.id, transferDto.amount, transferDto.transferType);
+    const transferTypeText = transferDto.transferType === 1 ? 'auction price' : 'transportation price';
+    return { message: `Successfully transferred ${transferDto.amount} from car ${transferDto.id} (${transferTypeText})` };
   }
 }
