@@ -245,29 +245,76 @@ export class CarsService {
       }
         
       // Automatically update "ToPay" fields when corresponding prices are updated
+      // Instead of resetting ToPay values, calculate the difference and adjust current values to preserve transfer history
       if (originalAuctionPriceForToPay !== undefined) {
-        updateData.auctionPriceToPay = originalAuctionPriceForToPay;
-      }
-      if (originalTransportationPriceForToPay !== undefined) {
-        // Set transPriceToPay considering doubleRate
-        updateData.transPriceToPay = is2xActive 
-          ? originalTransportationPriceForToPay * 2 
-          : originalTransportationPriceForToPay;
+        const currentAuctionPrice = car.auctionPrice || 0;
+        const newAuctionPrice = originalAuctionPriceForToPay;
+        const auctionPriceDifference = newAuctionPrice - currentAuctionPrice;
+        const currentAuctionPriceToPay = car.auctionPriceToPay || 0;
+        
+        // Add the price difference to current auctionPriceToPay to preserve transfer history
+        updateData.auctionPriceToPay = Math.max(0, currentAuctionPriceToPay + auctionPriceDifference);
+        
+        console.log(
+          `Car ${carID}: Auction price changed from ${currentAuctionPrice} to ${newAuctionPrice} (diff: ${auctionPriceDifference}). ` +
+          `AuctionPriceToPay updated from ${currentAuctionPriceToPay} to ${updateData.auctionPriceToPay}`
+        );
       }
       
+      if (originalTransportationPriceForToPay !== undefined) {
+        // Calculate current effective transportation price (considering current doubleRate)
+        const currentTransportationPrice = car.transportationPrice || 0;
+        const currentEffectiveTransPrice = car.doubleRate ? currentTransportationPrice / 2 : currentTransportationPrice;
+        
+        // Calculate new effective transportation price (considering new doubleRate)
+        const newTransportationPrice = originalTransportationPriceForToPay;
+        const newEffectiveTransPrice = is2xActive ? newTransportationPrice * 2 : newTransportationPrice;
+        
+        // Calculate difference in what customer should pay
+        const currentEffectiveToPayPrice = car.doubleRate ? currentEffectiveTransPrice * 2 : currentEffectiveTransPrice;
+        const transPriceDifference = newEffectiveTransPrice - currentEffectiveToPayPrice;
+        const currentTransPriceToPay = car.transPriceToPay || 0;
+        
+        // Add the price difference to current transPriceToPay to preserve transfer history
+        updateData.transPriceToPay = Math.max(0, currentTransPriceToPay + transPriceDifference);
+        
+        console.log(
+          `Car ${carID}: Transportation price changed from ${currentEffectiveTransPrice} to ${newTransportationPrice} (effective: ${newEffectiveTransPrice}, diff: ${transPriceDifference}). ` +
+          `TransPriceToPay updated from ${currentTransPriceToPay} to ${updateData.transPriceToPay}`
+        );
+      }
+
       // Handle transPriceToPay when only doubleRate changes (without transportationPrice update)
       if (updateData.doubleRate !== undefined && originalTransportationPriceForToPay === undefined) {
-        // Get the base transportation price (current price divided by current doubleRate factor)
+        const currentTransPriceToPay = car.transPriceToPay || 0;
         const currentTransportationPrice = car.transportationPrice || 0;
-        const baseTransportationPrice = car.doubleRate ? currentTransportationPrice / 2 : currentTransportationPrice;
         
+        // Calculate what the customer is currently expected to pay
+        // transportationPrice already contains the effective amount (doubled or not)
+        const currentEffectiveToPayPrice = currentTransportationPrice;
+        
+        // Calculate what the customer should pay after doubleRate change
+        let newEffectiveToPayPrice;
         if (updateData.doubleRate === true) {
-          // Activating 2x: transPriceToPay should be doubled base price
-          updateData.transPriceToPay = baseTransportationPrice * 2;
+          // Activating 2x: customer should pay double the base price
+          const basePrice = car.doubleRate ? currentTransportationPrice / 2 : currentTransportationPrice;
+          newEffectiveToPayPrice = basePrice * 2;
         } else if (updateData.doubleRate === false) {
-          // Deactivating 2x: transPriceToPay should be base price
-          updateData.transPriceToPay = baseTransportationPrice;
+          // Deactivating 2x: customer should pay base price
+          const basePrice = car.doubleRate ? currentTransportationPrice / 2 : currentTransportationPrice;
+          newEffectiveToPayPrice = basePrice;
+        } else {
+          newEffectiveToPayPrice = currentEffectiveToPayPrice;
         }
+        
+        const transPriceDifference = newEffectiveToPayPrice - currentEffectiveToPayPrice;
+        
+        // Add the difference to preserve transfer history
+        updateData.transPriceToPay = Math.max(0, currentTransPriceToPay + transPriceDifference);
+        
+        console.log(
+          `Car ${carID}: DoubleRate changed to ${updateData.doubleRate}. TransPriceToPay updated from ${currentTransPriceToPay} to ${updateData.transPriceToPay} (diff: ${transPriceDifference})`
+        );
       }
 
       // Calculate toBePaid based on ToPay fields instead of totalCost
@@ -276,7 +323,23 @@ export class CarsService {
       const totalToPay = finalAuctionPriceToPay + finalTransPriceToPay;
       const currentPaid = car.paid || 0;
       
-      updateData.toBePaid = Math.max(0, totalToPay - currentPaid);
+      updateData.toBePaid = Math.max(0, totalToPay);
+    }
+
+    // Handle direct updates to ToPay fields (when updated without price changes)
+    // Recalculate toBePaid if any ToPay field is directly updated
+    if ((updateData.auctionPriceToPay !== undefined || updateData.transPriceToPay !== undefined) &&
+        updateData.transportationPrice === undefined && updateData.auctionPrice === undefined && updateData.doubleRate === undefined) {
+      
+      const finalAuctionPriceToPay = updateData.auctionPriceToPay ?? car.auctionPriceToPay ?? 0;
+      const finalTransPriceToPay = updateData.transPriceToPay ?? car.transPriceToPay ?? 0;
+      const totalToPay = finalAuctionPriceToPay + finalTransPriceToPay;
+      
+      updateData.toBePaid = Math.max(0, totalToPay);
+      
+      console.log(
+        `Car ${carID}: ToPay fields directly updated. AuctionPriceToPay: ${finalAuctionPriceToPay}, TransPriceToPay: ${finalTransPriceToPay}, TotalToPay: ${totalToPay}, ToBePaid: ${updateData.toBePaid}`
+      );
     }
 
     // Calculate profit if only bonusAmount is being updated
@@ -727,10 +790,14 @@ export class CarsService {
       updateFields.transPriceToPay = newTransPriceToPay;
     }
 
+    // Add the transferred amount to the paid field (transfer represents a payment)
+    const currentPaid = car.paid || 0;
+    let newPaid = currentPaid + amount;
+    updateFields.paid = newPaid;
+
     // Recalculate toBePaid based on updated ToPay fields
     const newTotalToPay = newAuctionPriceToPay + newTransPriceToPay;
-    const currentPaid = car.paid || 0;
-    const newToBePaid = Math.max(0, newTotalToPay - currentPaid);
+    const newToBePaid = Math.max(0, newTotalToPay);
     updateFields.toBePaid = newToBePaid;
 
     // Update the car with new values
@@ -762,7 +829,9 @@ export class CarsService {
 
     const transferTypeText = transferType === 1 ? 'auctionPriceToPay' : 'transPriceToPay';
     console.log(
-      `Transferred ${amount} from car ${carID} (${transferTypeText}). User ${car.username} profitBalance: ${currentProfitBalance} -> ${newProfitBalance}, totalBalance: ${currentTotalBalance} -> ${newTotalBalance}. Car toBePaid: ${currentToBePaid} -> ${newToBePaid}`,
+      `Transferred ${amount} from car ${carID} (${transferTypeText}). ` +
+      `User ${car.username} profitBalance: ${currentProfitBalance} -> ${newProfitBalance}, totalBalance: ${currentTotalBalance} -> ${newTotalBalance}. ` +
+              `Car paid: ${currentPaid} -> ${newPaid}, toBePaid: ${currentToBePaid} -> ${newToBePaid}`,
     );
   }
 

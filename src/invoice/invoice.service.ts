@@ -444,10 +444,10 @@ export class InvoiceService {
       let purpose: string;
 
       if (type === 'transportation') {
-        finalAmount = amount !== undefined ? amount : car.transportationPrice || 0;
+        finalAmount = amount !== undefined ? amount : car.transPriceToPay || 0;
         purpose = 'ტრანსპორტირება';
       } else if (type === 'car') {
-        finalAmount = amount !== undefined ? amount : car.auctionPrice || 0;
+        finalAmount = amount !== undefined ? amount : car.auctionPriceToPay || 0;
         purpose = 'ავტომობილის ღირებულება';
       } else {
         throw new Error(`Invalid type: ${type}. Must be 'transportation' or 'car'`);
