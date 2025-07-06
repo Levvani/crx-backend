@@ -170,9 +170,9 @@ export class BogApiService {
 
   private async processStatementAndUpdateCars(statementData: StatementResponse, usdRate: number): Promise<void> {
     try {
-      // Get all cars with their VIN codes and required fields for totalCost calculation
+      // Get all cars with their VIN codes and required fields
       const cars = await this.carModel
-        .find({}, { vinCode: 1, toBePaid: 1, carID: 1, transportationPrice: 1 })
+        .find({}, { vinCode: 1, carID: 1, auctionPriceToPay: 1, transPriceToPay: 1 })
         .lean();
 
       // Create a map of VIN codes to car data for quick lookup
@@ -181,8 +181,8 @@ export class BogApiService {
           car.vinCode,
           {
             id: car.carID,
-            toBePaid: car.toBePaid || 0,
-            transportationPrice: car.transportationPrice || 0,
+            auctionPriceToPay: car.auctionPriceToPay || 0,
+            transPriceToPay: car.transPriceToPay || 0,
           },
         ]),
       );
@@ -195,7 +195,12 @@ export class BogApiService {
       );
 
       // Process statement entries and collect updates
-      const updates: { id: number; entryId: number; finalCredit: number }[] = [];
+      const updates: { 
+        id: number; 
+        entryId: number; 
+        finalCredit: number; 
+        updateType: 'transportation' | 'auction' 
+      }[] = [];
       const processedEntries: {
         entryId: number;
         amount: number;
@@ -223,13 +228,20 @@ export class BogApiService {
               normalizedCredit = normalizedCredit - fee;
             }
 
+            // Check for transportation keyword
+            const hasTransportationKeyword = entry.EntryComment.includes('ტრანსპორტირებ');
+
             // Find matching car by VIN code in EntryComment
             for (const [vinCode, carData] of vinCodeToCarData.entries()) {
               if (entry.EntryComment.includes(vinCode)) {
+                // Determine update type based on keyword presence
+                const updateType = hasTransportationKeyword ? 'transportation' : 'auction';
+                
                 updates.push({
                   id: carData.id,
                   entryId: entry.Id,
                   finalCredit: normalizedCredit,
+                  updateType: updateType,
                 });
 
                 foundMatch = true;
@@ -253,11 +265,22 @@ export class BogApiService {
         for (const update of updates) {
           if (update.finalCredit > 0) {
             try {
-              // Use negative amount to subtract from toBePaid (this will automatically update user balance)
-              await this.carsService.updateToBePaid(update.id, -update.finalCredit);
-              console.log(`Updated car ${update.id} toBePaid by -${update.finalCredit}`);
+              // Get current car data to calculate new ToPay values
+              const currentCar = await this.carsService.findOne(update.id);
+              
+              if (update.updateType === 'transportation') {
+                // Subtract from transPriceToPay
+                const newTransPriceToPay = Math.max(0, (currentCar.transPriceToPay || 0) - update.finalCredit);
+                await this.carsService.update(update.id, { transPriceToPay: newTransPriceToPay }, []);
+                console.log(`Updated car ${update.id} transPriceToPay from ${currentCar.transPriceToPay} to ${newTransPriceToPay} (VIN + transportation keyword found)`);
+              } else {
+                // Subtract from auctionPriceToPay
+                const newAuctionPriceToPay = Math.max(0, (currentCar.auctionPriceToPay || 0) - update.finalCredit);
+                await this.carsService.update(update.id, { auctionPriceToPay: newAuctionPriceToPay }, []);
+                console.log(`Updated car ${update.id} auctionPriceToPay from ${currentCar.auctionPriceToPay} to ${newAuctionPriceToPay} (VIN only found)`);
+              }
 
-              // Add the entryAmount to the car's paid field
+              // Add the finalCredit to the car's paid field
               await this.carsService.updatePaid(update.id, update.finalCredit);
               console.log(`Updated car ${update.id} paid by +${update.finalCredit}`);
             } catch (error) {
