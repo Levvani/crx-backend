@@ -20,7 +20,7 @@ export class SingleNotificationUpdateDto {
   isRead: boolean;
 }
 
-export class DealerUpdateDto {
+export class NotificationUpdateDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => SingleNotificationUpdateDto)
