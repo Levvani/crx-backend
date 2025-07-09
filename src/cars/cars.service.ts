@@ -121,8 +121,18 @@ export class CarsService {
       ? baseTranSpriceToPay * 2 
       : baseTranSpriceToPay;
 
+    // Apply financing amount redistribution if provided
+    let finalAuctionPriceToPay = auctionPriceToPay;
+    let finalTransPriceToPay = transPriceToPay;
+    
+    if (createCarDto.financingAmount && createCarDto.financingAmount > 0) {
+      // Subtract financing amount from auction price and add to transportation price
+      finalAuctionPriceToPay = Math.max(0, auctionPriceToPay - createCarDto.financingAmount);
+      finalTransPriceToPay = transPriceToPay + createCarDto.financingAmount;
+    }
+
     // Calculate toBePaid based on prices that customer needs to pay (including doubleRate effect)
-    const totalToPay = auctionPriceToPay + transPriceToPay;
+    const totalToPay = finalAuctionPriceToPay + finalTransPriceToPay;
     const toBePaid = Math.max(0, totalToPay - (createCarDto.paid || 0));
 
     // Create a new car with values from DTO (no automatic calculations)
@@ -133,8 +143,8 @@ export class CarsService {
       photos: photoUrls, // Store cloud storage URLs instead of local paths
       // Use values from DTO or defaults
       transportationPrice: finalTransportationPrice,
-      auctionPriceToPay: auctionPriceToPay,
-      transPriceToPay: transPriceToPay,
+      auctionPriceToPay: finalAuctionPriceToPay,
+      transPriceToPay: finalTransPriceToPay,
       totalCost: createCarDto.totalCost || 0,
       toBePaid: toBePaid, // Use calculated toBePaid based on ToPay fields
       profit: calculatedProfit, // Use calculated profit instead of DTO value
@@ -284,6 +294,8 @@ export class CarsService {
         );
       }
 
+
+
       // Handle transPriceToPay when only doubleRate changes (without transportationPrice update)
       if (updateData.doubleRate !== undefined && originalTransportationPriceForToPay === undefined) {
         const currentTransPriceToPay = car.transPriceToPay || 0;
@@ -324,6 +336,34 @@ export class CarsService {
       const currentPaid = car.paid || 0;
       
       updateData.toBePaid = Math.max(0, totalToPay);
+    }
+
+    // Handle financing amount redistribution whenever financingAmount is updated
+    if (updateData.financingAmount !== undefined) {
+      const currentFinancingAmount = car.financingAmount || 0;
+      const newFinancingAmount = updateData.financingAmount;
+      const financingAmountDifference = newFinancingAmount - currentFinancingAmount;
+      
+      if (financingAmountDifference !== 0) {
+        // Get current ToPay values (use updateData values if they exist, otherwise use car values)
+        const currentAuctionPriceToPay = updateData.auctionPriceToPay ?? car.auctionPriceToPay ?? 0;
+        const currentTransPriceToPay = updateData.transPriceToPay ?? car.transPriceToPay ?? 0;
+        
+        // Apply financing redistribution
+        const newAuctionPriceToPay = Math.max(0, currentAuctionPriceToPay - financingAmountDifference);
+        const newTransPriceToPay = currentTransPriceToPay + financingAmountDifference;
+        
+        updateData.auctionPriceToPay = newAuctionPriceToPay;
+        updateData.transPriceToPay = newTransPriceToPay;
+        
+        // Recalculate toBePaid after financing redistribution
+        updateData.toBePaid = Math.max(0, newAuctionPriceToPay + newTransPriceToPay);
+        
+        console.log(
+          `Car ${carID}: Financing amount changed from ${currentFinancingAmount} to ${newFinancingAmount} (diff: ${financingAmountDifference}). ` +
+          `AuctionPriceToPay: ${currentAuctionPriceToPay} -> ${newAuctionPriceToPay}, TransPriceToPay: ${currentTransPriceToPay} -> ${newTransPriceToPay}`
+        );
+      }
     }
 
     // Handle direct updates to ToPay fields (when updated without price changes)
