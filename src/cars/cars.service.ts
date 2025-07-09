@@ -890,11 +890,17 @@ export class CarsService {
 
       console.log(`Found ${carsWithFinancing.length} cars with financing amounts`);
 
-      // Process each car
+      // Prepare bulk operations for better scalability
+      const carBulkOps = [];
+      const userBalanceUpdates = new Map<string, number>(); // Group by username
+      const processedCars = [];
+
+      // Process all cars and prepare bulk operations
       for (const car of carsWithFinancing) {
         const financingAmount = car.financingAmount || 0;
         const currentInterestSum = car.interestSum || 0;
-        const currentToBePaid = car.toBePaid || 0;
+        const currentTransPriceToPay = car.transPriceToPay || 0;
+        const currentAuctionPriceToPay = car.auctionPriceToPay || 0;
 
         // Calculate 0.3% interest
         const interestAmount = financingAmount * 0.003; // 0.3% = 0.003
@@ -902,30 +908,91 @@ export class CarsService {
         // Add interest to interestSum
         const newInterestSum = currentInterestSum + interestAmount;
 
-        // Add interest to toBePaid
-        const newToBePaid = currentToBePaid + interestAmount;
+        // Add interest to transPriceToPay instead of directly to toBePaid
+        const newTransPriceToPay = currentTransPriceToPay + interestAmount;
 
-        // Update the car with new interestSum and toBePaid
-        await this.carModel.updateOne(
-          { carID: car.carID }, 
-          { 
-            $set: { 
-              interestSum: newInterestSum,
-              toBePaid: newToBePaid 
-            } 
+        // Calculate toBePaid based on ToPay fields (consistent with rest of system)
+        const newToBePaid = currentAuctionPriceToPay + newTransPriceToPay;
+
+        // Add to bulk car operations
+        carBulkOps.push({
+          updateOne: {
+            filter: { carID: car.carID },
+            update: {
+              $set: {
+                interestSum: newInterestSum,
+                transPriceToPay: newTransPriceToPay,
+                toBePaid: newToBePaid
+              }
+            }
           }
-        );
+        });
 
-        // Update user's total balance with the interest amount
-        try {
-          await this.updateUserTotalBalance(car.username, interestAmount);
-        } catch (error) {
-          console.error(`Failed to update total balance for user ${car.username}:`, error);
-          // Continue with other cars even if one fails
+        // Accumulate user balance changes (group by username)
+        const currentUserUpdate = userBalanceUpdates.get(car.username) || 0;
+        userBalanceUpdates.set(car.username, currentUserUpdate + interestAmount);
+
+        // Store for logging
+        processedCars.push({
+          carID: car.carID,
+          username: car.username,
+          financingAmount,
+          interestAmount,
+          currentInterestSum,
+          newInterestSum,
+          currentTransPriceToPay,
+          newTransPriceToPay,
+          newToBePaid
+        });
+      }
+
+      // Execute bulk car updates
+      if (carBulkOps.length > 0) {
+        await this.carModel.bulkWrite(carBulkOps);
+        console.log(`Bulk updated ${carBulkOps.length} cars with financing interest`);
+      }
+
+      // Execute user balance updates in parallel (batched by user)
+      const userUpdatePromises = Array.from(userBalanceUpdates.entries()).map(
+        async ([username, totalInterest]) => {
+          try {
+            await this.updateUserTotalBalance(username, totalInterest);
+            return { username, success: true, amount: totalInterest };
+          } catch (error) {
+            console.error(`Failed to update total balance for user ${username}:`, error);
+            return { username, success: false, amount: totalInterest, error };
+          }
         }
+      );
 
+      const userUpdateResults = await Promise.all(userUpdatePromises);
+
+      // Log results
+      const successfulUserUpdates = userUpdateResults.filter(result => result.success).length;
+      const failedUserUpdates = userUpdateResults.filter(result => !result.success);
+      
+      console.log(`Updated balances for ${successfulUserUpdates}/${userUpdateResults.length} users`);
+      
+      if (failedUserUpdates.length > 0) {
+        console.error(`Failed to update balances for users: ${failedUserUpdates.map(u => u.username).join(', ')}`);
+      }
+
+      // Log individual car processing (sample for large datasets)
+      if (processedCars.length <= 10) {
+        // Log all cars if 10 or fewer
+        processedCars.forEach(car => {
+          console.log(
+            `Applied interest to car ${car.carID} (${car.username}): ${car.financingAmount} * 0.3% = ${car.interestAmount}. ` +
+            `InterestSum: ${car.currentInterestSum} -> ${car.newInterestSum}, ` +
+            `TransPriceToPay: ${car.currentTransPriceToPay} -> ${car.newTransPriceToPay}, ` +
+            `ToBePaid: -> ${car.newToBePaid}`
+          );
+        });
+      } else {
+        // Log summary for large datasets
+        const totalInterest = processedCars.reduce((sum, car) => sum + car.interestAmount, 0);
         console.log(
-          `Applied interest to car ${car.carID} (${car.username}): ${financingAmount} * 0.3% = ${interestAmount}. InterestSum: ${currentInterestSum} -> ${newInterestSum}, ToBePaid: ${currentToBePaid} -> ${newToBePaid}`,
+          `Processed ${processedCars.length} cars: Total interest applied: ${totalInterest.toFixed(2)}`
         );
       }
 
