@@ -9,6 +9,12 @@ export enum CarStatus {
 
 export type CarDocument = Car & Document;
 
+// Helper function to round to 2 decimal places
+const roundToTwoDecimals = (value: number): number => {
+  if (value == null || isNaN(value)) return value;
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+};
+
 @Schema()
 export class Car {
   @Prop({ required: false, unique: true })
@@ -58,19 +64,39 @@ export class Car {
   @Prop({ required: false })
   buyerPhone: string;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   auctionPrice: number;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   transportationPrice: number;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   auctionPriceToPay: number;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   transPriceToPay: number;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   totalCost: number;
 
   @Prop({ required: false })
@@ -79,10 +105,18 @@ export class Car {
   @Prop({ required: false })
   bonusReceiver: string;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   bonusAmount: number;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   interestSum: number;
 
   @Prop({ default: Date.now })
@@ -97,19 +131,39 @@ export class Car {
   @Prop({ required: false, default: false })
   isOffsite: boolean;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   auctionFine: number;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   financingAmount: number;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   paid: number;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   toBePaid: number;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   profit: number;
 
   @Prop({ type: [String], default: [] })
@@ -133,7 +187,11 @@ export class Car {
   @Prop({ required: false, default: false })
   iAuctionClosed: boolean;
 
-  @Prop({ required: false, default: 0 })
+  @Prop({ 
+    required: false, 
+    default: 0,
+    set: roundToTwoDecimals
+  })
   titlePrice: number;
 }
 
