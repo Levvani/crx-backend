@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cron } from '@nestjs/schedule';
@@ -70,6 +70,12 @@ export class CarsService {
         throw new NotFoundException(`User ${createCarDto.username} does not exist`);
       }
       throw error;
+    }
+
+    // Check if vinCode already exists
+    const existingCar = await this.carModel.findOne({ vinCode: createCarDto.vinCode }).exec();
+    if (existingCar) {
+      throw new ConflictException(`Car with VIN code '${createCarDto.vinCode}' already exists`);
     }
 
     // Find the highest carID in the database
@@ -171,6 +177,14 @@ export class CarsService {
     const car = await this.carModel.findOne({ carID }).exec();
     if (!car) {
       throw new NotFoundException(`Car with ID ${carID} not found`);
+    }
+
+    // Check if vinCode already exists
+    if (updateCarDto.vinCode) {
+      const existingCar = await this.carModel.findOne({ vinCode: updateCarDto.vinCode }).exec();
+      if (existingCar && existingCar.carID !== car.carID) { // Exclude the current car from check
+        throw new ConflictException(`Car with VIN code '${updateCarDto.vinCode}' already exists`);
+      }
     }
 
     // Update the car properties
