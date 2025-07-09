@@ -126,6 +126,15 @@ export class Car {
 
   @Prop({ required: false, default: 0 })
   oversized: number;
+
+  @Prop({ required: false })
+  arrivalPort: string;
+
+  @Prop({ required: false, default: false })
+  iAuctionClosed: boolean;
+
+  @Prop({ required: false, default: 0 })
+  titlePrice: number;
 }
 
 export const CarSchema = SchemaFactory.createForClass(Car);
