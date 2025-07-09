@@ -309,7 +309,7 @@ export class CreateCarDto {
     }
     return Boolean(value);
   })
-  iAuctionClosed: boolean;
+  isAuctionClosed: boolean;
 
   @IsOptional()
   @IsNumber()
