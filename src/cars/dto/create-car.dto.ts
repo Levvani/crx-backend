@@ -59,6 +59,10 @@ export class CreateCarDto {
 
   @IsOptional()
   @IsString()
+  shippingCompany?: string
+
+  @IsOptional()
+  @IsString()
   dateOfContainerOpening: string;
 
   @IsOptional()

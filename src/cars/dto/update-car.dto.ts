@@ -50,6 +50,10 @@ export class UpdateCarDto {
 
   @IsOptional()
   @IsString()
+  shippingCompany?: string
+
+  @IsOptional()
+  @IsString()
   dateOfContainerOpening?: string;
 
   @IsOptional()
