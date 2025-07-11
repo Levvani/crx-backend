@@ -23,15 +23,16 @@ export class PricesService {
     // Get all existing dealer types to add their fields to the new price object
     const existingDealerTypes = await this.dealerTypeModel.find().exec();
     const dealerTypeFields: Record<string, number> = {};
+    const upsellAmount = createPriceDto.upsellAmount || 0;
 
     existingDealerTypes.forEach((dealerType) => {
-      dealerTypeFields[dealerType.name] = dealerType.amount;
+      dealerTypeFields[dealerType.name] = dealerType.amount + upsellAmount;
     });
 
     // Create price object with existing dealer type fields
     const priceData = {
       ...createPriceDto,
-      ...dealerTypeFields, // Add all existing dealer type fields
+      ...dealerTypeFields, // Add correctly calculated dealer type fields
     };
 
     const createdPrice = new this.priceModel(priceData);
@@ -67,6 +68,17 @@ export class PricesService {
   }
 
   async update(id: number, updatePriceDto: UpdatePriceDto): Promise<Price> {
+    // If upsellAmount is being updated, we need to recalculate dealer type fields
+    if ('upsellAmount' in updatePriceDto) {
+      const dealerTypes = await this.dealerTypeModel.find().exec();
+      const newUpsellAmount = updatePriceDto.upsellAmount;
+      
+      // Recalculate all dealer type fields with the new upsellAmount
+      dealerTypes.forEach((dealerType) => {
+        updatePriceDto[dealerType.name] = dealerType.amount + newUpsellAmount;
+      });
+    }
+
     const updatedPrice = await this.priceModel
       .findOneAndUpdate({ id }, updatePriceDto, { new: true })
       .exec();
@@ -151,54 +163,91 @@ export class PricesService {
         throw new BadRequestException(`Missing required columns: ${missingColumns.join(', ')}`);
       }
 
-      // Find the highest id in the database
+      // Get existing locations and highest id
+      const existingPrices = await this.priceModel.find({}, { location: 1, id: 1 }).exec();
+      const existingLocations = new Set(existingPrices.map(p => p.location));
       const highestPrice = await this.priceModel.findOne().sort({ id: -1 }).exec();
 
-      // Get all existing dealer types to add their fields to new price objects
+      // Get all existing dealer types to add their fields to price objects
       const existingDealerTypes = await this.dealerTypeModel.find().exec();
-      const dealerTypeFields: Record<string, number> = {};
-
-      existingDealerTypes.forEach((dealerType) => {
-        dealerTypeFields[dealerType.name] = dealerType.amount;
-      });
 
       let nextId: number = highestPrice ? (highestPrice.id as number) + 1 : 1;
       const now = new Date();
 
-      // Prepare bulk operations
-      const operations = rows.map((row: any) => {
+      // Prepare bulk operations with upsert logic
+      const operations = rows.map((row: any, index: number) => {
         const r = row as {
           location: string;
           upsellAmount: number | string;
           basePrice: number | string;
         };
-        return {
-          insertOne: {
-            document: {
-              id: nextId++,
-              location: r.location,
-              upsellAmount: Number(r.upsellAmount),
-              basePrice: Number(r.basePrice),
-              ...dealerTypeFields, // Add all existing dealer type fields
-              createdAt: now,
-              updatedAt: now,
+        
+        // Validate and convert numeric fields
+        const upsellAmount = this.parseNumberField(r.upsellAmount, `upsellAmount at row ${index + 2}`);
+        const basePrice = this.parseNumberField(r.basePrice, `basePrice at row ${index + 2}`);
+        
+        // Validate required fields
+        if (!r.location || r.location.toString().trim() === '') {
+          throw new BadRequestException(`Location is required at row ${index + 2}`);
+        }
+        
+        const location = r.location.toString().trim();
+        
+        // Calculate dealer type fields correctly: amount + upsellAmount
+        const dealerTypeFields: Record<string, number> = {};
+        existingDealerTypes.forEach((dealerType) => {
+          dealerTypeFields[dealerType.name] = dealerType.amount + upsellAmount;
+        });
+
+        const isExistingLocation = existingLocations.has(location);
+        
+        if (isExistingLocation) {
+          // Update existing location: keep id and createdAt, update other fields
+          return {
+            updateOne: {
+              filter: { location },
+              update: {
+                $set: {
+                  upsellAmount,
+                  basePrice,
+                  ...dealerTypeFields, // Recalculated dealer type fields
+                  updatedAt: now,
+                },
+              },
             },
-          },
-        };
+          };
+        } else {
+          // Insert new location with new id
+          return {
+            updateOne: {
+              filter: { location },
+              update: {
+                $setOnInsert: {
+                  id: nextId++,
+                  location,
+                  createdAt: now,
+                },
+                $set: {
+                  upsellAmount,
+                  basePrice,
+                  ...dealerTypeFields, // Calculated dealer type fields
+                  updatedAt: now,
+                },
+              },
+              upsert: true,
+            },
+          };
+        }
       });
 
       // Use bulkWrite for better performance
       const result = await this.priceModel.bulkWrite(operations);
-      console.log(`Bulk inserted ${result.insertedCount} prices`);
+      console.log(`Bulk operations completed: ${result.upsertedCount} inserted, ${result.modifiedCount} updated`);
 
-      // Fetch the created documents
-      const startId: number = highestPrice ? (highestPrice.id as number) + 1 : 1;
-      const endId = startId + rows.length - 1;
-
+      // Fetch all affected documents by location
+      const locations = rows.map((row: any) => row.location);
       const savedPrices = await this.priceModel
-        .find({
-          id: { $gte: startId, $lte: endId },
-        })
+        .find({ location: { $in: locations } })
         .sort({ id: 1 })
         .exec();
 
@@ -284,5 +333,34 @@ export class PricesService {
     }
 
     return this.dealerTypeModel.findByIdAndDelete(id).exec();
+  }
+
+  /**
+   * Helper method to safely parse number fields from file data
+   * @param value - The value to parse (can be string, number, null, undefined)
+   * @param fieldName - Field name for error messages
+   * @returns Valid number
+   * @throws BadRequestException if value is not a valid number
+   */
+  private parseNumberField(value: any, fieldName: string): number {
+    // Handle null, undefined, or empty string
+    if (value === null || value === undefined || value === '') {
+      throw new BadRequestException(`${fieldName} is required and cannot be empty`);
+    }
+
+    // Convert to number
+    const numValue = Number(value);
+
+    // Check if conversion resulted in NaN
+    if (isNaN(numValue)) {
+      throw new BadRequestException(`${fieldName} must be a valid number, got: "${value}"`);
+    }
+
+    // Check for negative numbers if business logic requires positive values
+    if (numValue < 0) {
+      throw new BadRequestException(`${fieldName} cannot be negative, got: ${numValue}`);
+    }
+
+    return numValue;
   }
 }
