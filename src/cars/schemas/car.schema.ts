@@ -50,6 +50,9 @@ export class Car {
   shippingLine: string;
 
   @Prop({ required: false })
+  shippingCompany: string;
+
+  @Prop({ required: false })
   dateOfContainerOpening: string;
 
   @Prop({ required: false })

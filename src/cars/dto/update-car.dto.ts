@@ -1,25 +1,30 @@
-import { IsString, IsNumber, Min, IsOptional, IsBoolean, IsEnum, IsArray } from 'class-validator';
+import { IsString, IsNumber, Min, IsOptional, IsBoolean, IsEnum, IsArray, IsNotEmpty, ValidateIf } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { CarStatus } from '../schemas/car.schema';
 
 export class UpdateCarDto {
-  @IsOptional()
+  @ValidateIf((o) => o.username !== undefined)
+  @IsNotEmpty()
   @IsString()
   username?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => o.vinCode !== undefined)
+  @IsNotEmpty()
   @IsString()
   vinCode?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => o.carName !== undefined)
+  @IsNotEmpty()
   @IsString()
   carName?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => o.location !== undefined)
+  @IsNotEmpty()
   @IsString()
   location?: string;
 
-  @IsOptional()
+  @ValidateIf((o) => o.lotNumber !== undefined)
+  @IsNotEmpty()
   @IsString()
   lotNumber?: string;
 
@@ -42,6 +47,10 @@ export class UpdateCarDto {
   @IsOptional()
   @IsString()
   shippingLine?: string;
+
+  @IsOptional()
+  @IsString()
+  shippingCompany?: string
 
   @IsOptional()
   @IsString()
